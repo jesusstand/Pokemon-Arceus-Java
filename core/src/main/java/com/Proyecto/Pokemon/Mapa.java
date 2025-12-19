@@ -10,6 +10,9 @@ import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.maps.MapObject;
+import com.badlogic.gdx.maps.objects.RectangleMapObject;
+import com.badlogic.gdx.math.Rectangle;
 
 /**
  * Pantalla principal del juego donde ocurre la accion.
@@ -31,24 +34,23 @@ public class Mapa implements Screen {
      *
      * @param game Instancia principal del juego.
      */
-    public Mapa(Main game) {
+    public Mapa(Main game, String nombreArchivo) {
         this.game = game;
-        // Carga el mapa desde la carpeta assets
-        mapaTiled = new TmxMapLoader().load("MapaVerdePokemon.tmx");
+
+        // Ahora cargamos el mapa usando la variable nombreArchivo
+        mapaTiled = new TmxMapLoader().load(nombreArchivo);
         renderer = new OrthogonalTiledMapRenderer(mapaTiled, UNIT_SCALE, game.batch);
 
-        // Obtiene las dimensiones del mapa desde las propiedades
         anchoMapa = mapaTiled.getProperties().get("width", Integer.class);
         altoMapa = mapaTiled.getProperties().get("height", Integer.class);
 
         camera = new OrthographicCamera();
-        // Inicializa al jugador en la posicion (10, 10)
-        jugador = new Player(10f, 10f);
+        jugador = new Player(10f, 10f); // Puedes ajustar esto para que aparezca en otro sitio
     }
 
     /**
      * Interactua con el tile en la posicion dada.
-     * 
+     *
      * @param x Coordenada X del tile objetivo.
      * @param y Coordenada Y del tile objetivo.
      */
@@ -57,21 +59,23 @@ public class Mapa implements Screen {
         int cellY = (int) y;
 
         // Comprobamos la capa 'pokeballVerde'
-        TiledMapTileLayer layerVerde = (TiledMapTileLayer) mapaTiled.getLayers().get("pokeballVerde");
-        if (layerVerde != null) {
-            TiledMapTileLayer.Cell cell = layerVerde.getCell(cellX, cellY);
+        MapLayer layerVerde = mapaTiled.getLayers().get("pokeballVerde");
+        if (layerVerde instanceof TiledMapTileLayer) {
+            TiledMapTileLayer tileLayer = (TiledMapTileLayer) layerVerde;
+            TiledMapTileLayer.Cell cell = tileLayer.getCell(cellX, cellY);
             if (cell != null) {
                 // Elimina la pokeball
-                layerVerde.setCell(cellX, cellY, null);
+                tileLayer.setCell(cellX, cellY, null);
                 System.out.println("Pokeball verde recogida!");
                 return;
             }
         }
 
         // Comprobamos la capa 'pokeballVerdeDos'
-        TiledMapTileLayer layerVerdeDos = (TiledMapTileLayer) mapaTiled.getLayers().get("pokeballVerdeDos");
-        if (layerVerdeDos != null) {
-            TiledMapTileLayer.Cell cell = layerVerdeDos.getCell(cellX, cellY);
+        MapLayer layerVerdeDos = mapaTiled.getLayers().get("pokeballVerdeDos");
+        if (layerVerdeDos instanceof TiledMapTileLayer) {
+            TiledMapTileLayer tileLayer = (TiledMapTileLayer) layerVerdeDos;
+            TiledMapTileLayer.Cell cell = tileLayer.getCell(cellX, cellY);
             if (cell != null) {
                 // Vuelve a la pantalla de inicio
                 game.setScreen(new PantallaDeInicio(game));
@@ -88,8 +92,20 @@ public class Mapa implements Screen {
      * @return true si es solido (no transitable), false si es libre.
      */
     public boolean esSolido(int x, int y) {
-        // Primero verificamos que haya suelo (capa 0) y no nos salgamos del mapa
-        TiledMapTileLayer backgroundLayer = (TiledMapTileLayer) mapaTiled.getLayers().get(0);
+        // Primero verificamos que haya suelo y no nos salgamos del mapa
+        // Buscamos la primera capa de tiles para usarla como referencia de bordes
+        TiledMapTileLayer backgroundLayer = null;
+        for (MapLayer layer : mapaTiled.getLayers()) {
+            if (layer instanceof TiledMapTileLayer) {
+                backgroundLayer = (TiledMapTileLayer) layer;
+                break;
+            }
+        }
+
+        if (backgroundLayer == null) {
+            return true; // Si no hay capas de tiles, asumimos solido por seguridad
+        }
+
         TiledMapTileLayer.Cell bgCell = backgroundLayer.getCell(x, y);
 
         if (bgCell == null) {
@@ -107,6 +123,37 @@ public class Mapa implements Screen {
             }
         }
         return false;
+    }
+
+    public void revisarPortales(float x, float y) {
+        // Buscamos la capa de objetos (asegúrate que el nombre coincida con Tiled)
+        MapLayer capaObjetos = mapaTiled.getLayers().get("Portal"); // O "Portales"
+
+        if (capaObjetos != null) {
+            for (MapObject objeto : capaObjetos.getObjects()) {
+                if (objeto instanceof RectangleMapObject) {
+                    Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
+
+                    // IMPORTANTE: Como usamos UNIT_SCALE (1/16), debemos ajustar
+                    // el rectángulo si Tiled lo da en píxeles.
+                    float rectX = rect.x * UNIT_SCALE;
+                    float rectY = rect.y * UNIT_SCALE;
+                    float rectW = rect.width * UNIT_SCALE;
+                    float rectH = rect.height * UNIT_SCALE;
+
+                    if (x >= rectX && x <= rectX + rectW && y >= rectY && y <= rectY + rectH) {
+                        String siguienteMapa = objeto.getProperties().get("Destino", String.class);
+                        if (siguienteMapa != null) {
+                            if (!siguienteMapa.endsWith(".tmx")) {
+                                siguienteMapa += ".tmx";
+                            }
+                            game.setScreen(new Mapa(game, siguienteMapa));
+                            dispose();
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Override

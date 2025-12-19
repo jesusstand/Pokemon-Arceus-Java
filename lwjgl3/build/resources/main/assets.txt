@@ -1,4 +1,5 @@
 .gitkeep
+MapaAzulPokemon.tmx
 MapaVerdePokemon.tmx
 Multiplayer.png
 MultiplayerC.png

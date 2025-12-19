@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="50" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="1">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="50" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="6" nextobjectid="4">
  <tileset firstgid="1" source="TexturasVerde.tsx"/>
  <tileset firstgid="6073" source="PokebolaVerde.tsx"/>
+ <objectgroup id="5" name="Portal">
+  <object id="3" name="PortalVerde" x="417" y="0.666667" width="29.3333" height="30.6667">
+   <properties>
+    <property name="Destino" value="MapaAzulPokemon"/>
+   </properties>
+  </object>
+ </objectgroup>
  <layer id="1" name="Capa de patrones 1" width="50" height="40">
   <data encoding="csv">
 271,272,271,272,271,272,271,272,271,272,271,272,271,272,271,272,271,272,271,272,271,272,271,272,271,272,2,2,271,272,271,272,271,272,3521,2289,2290,2290,1673,593,770,770,770,770,770,770,770,770,595,1675,

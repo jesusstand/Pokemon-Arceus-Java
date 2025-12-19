@@ -55,7 +55,7 @@ public class MenuPrincipal implements Screen {
      * Constructor de la pantalla del menú. Se encarga de inicializar la referencia
      * al juego
      * y cargar todos los recursos gráficos (texturas).
-     * 
+     *
      * @param game La instancia principal del juego.
      */
     public MenuPrincipal(Main game) {
@@ -80,7 +80,7 @@ public class MenuPrincipal implements Screen {
     /**
      * Método render: El bucle principal del juego, se llama continuamente.
      * Contiene la lógica de selección, el escalado visual y el dibujo.
-     * 
+     *
      * @param delta El tiempo transcurrido desde el último frame (útil para
      *              animaciones).
      */
@@ -153,7 +153,7 @@ public class MenuPrincipal implements Screen {
             switch (opcionSeleccionada) {
                 case PARTIDA_INDIVIDUAL:
                     // Cambiar a la pantalla de inicio de juego
-                    game.setScreen(new Mapa(game));
+                    game.setScreen(new Mapa(game, "MapaVerdePokemon.tmx"));
                     dispose(); // Es crucial liberar los recursos del menú
                     break;
                 case MULTIPLAYER:

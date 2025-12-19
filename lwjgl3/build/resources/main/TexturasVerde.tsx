@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.11.2" name="Texturas" tilewidth="16" tileheight="16" tilecount="6072" columns="88">
  <image source="../TileSets/TilesetPokemon.png" width="1408" height="1104"/>
+ <tile id="38">
+  <objectgroup draworder="index" id="2">
+   <object id="1" type="Mar" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
  <tile id="267">
   <objectgroup draworder="index" id="2">
    <object id="1" type="Letrero" x="0" y="0" width="16" height="16"/>
@@ -354,6 +359,186 @@
  <tile id="3610">
   <objectgroup>
    <object id="1" type="Cercas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4066">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4067">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4068">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4069">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4070">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4071">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4154">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4155">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4156">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4157">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4158">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4159">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4242">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4243">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4244">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4245">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4246">
+  <objectgroup>
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="4247">
+  <objectgroup draworder="index" id="2">
+   <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5256">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5257">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5258">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5259">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5260">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5261">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5344">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5345">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5346">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5347">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5348">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5349">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5432">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5433">
+  <objectgroup draworder="index" id="2">
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5434">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5520">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5521">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="5522">
+  <objectgroup>
+   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
   </objectgroup>
  </tile>
 </tileset>
