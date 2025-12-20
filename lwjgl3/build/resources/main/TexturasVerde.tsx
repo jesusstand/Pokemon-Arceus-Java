@@ -271,6 +271,46 @@
    <object id="1" type="Cercas" x="0" y="0" width="16" height="16"/>
   </objectgroup>
  </tile>
+ <tile id="1672">
+  <objectgroup>
+   <object id="1" type="Colinas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="1673">
+  <objectgroup>
+   <object id="1" type="Colinas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="1674">
+  <objectgroup>
+   <object id="1" type="Colinas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="1760">
+  <objectgroup>
+   <object id="1" type="Colinas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="1762">
+  <objectgroup draworder="index" id="2">
+   <object id="1" type="Colinas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="1848">
+  <objectgroup>
+   <object id="1" type="Colinas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="1849">
+  <objectgroup>
+   <object id="1" type="Colinas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
+ <tile id="1850">
+  <objectgroup>
+   <object id="1" type="Colinas" x="0" y="0" width="16" height="16"/>
+  </objectgroup>
+ </tile>
  <tile id="2200">
   <objectgroup>
    <object id="1" type="Rios" x="0" y="0" width="16" height="16"/>
@@ -450,6 +490,21 @@
   <objectgroup draworder="index" id="2">
    <object id="1" type="Paraguas" x="0" y="0" width="16" height="16"/>
   </objectgroup>
+ </tile>
+ <tile id="4861">
+  <properties>
+   <property name="Item" value="Goma"/>
+  </properties>
+ </tile>
+ <tile id="5039">
+  <properties>
+   <property name="Item" value="Madera"/>
+  </properties>
+ </tile>
+ <tile id="5124">
+  <properties>
+   <property name="Item" value="Plastico"/>
+  </properties>
  </tile>
  <tile id="5256">
   <objectgroup>
