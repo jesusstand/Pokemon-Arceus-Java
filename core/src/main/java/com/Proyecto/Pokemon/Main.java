@@ -14,20 +14,34 @@ public class Main extends Game {
      * Se declara publico para que las diferentes pantallas puedan acceder a el.
      */
     public SpriteBatch batch;
+    private Player jugador;
 
     @Override
     public void create() {
         // Se inicializa el SpriteBatch para el dibujado de graficos.
         batch = new SpriteBatch();
 
-        // Se establece la pantalla inicial del juego, que es la pantalla de
-        // presentacion.
+        // Inicializamos el jugador de forma global para persistir su inventario.
+        jugador = new Player(10, 10);
+
+        // Se establece la pantalla inicial del juego.
         setScreen(new PantallaDeInicio(this));
+    }
+
+    public Player getJugador() {
+        return jugador;
+    }
+
+    public void setJugador(Player jugador) {
+        this.jugador = jugador;
     }
 
     @Override
     public void dispose() {
         // Se liberan los recursos del SpriteBatch al cerrar la aplicacion.
         batch.dispose();
+        if (jugador != null) {
+            jugador.dispose();
+        }
     }
 }

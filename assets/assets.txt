@@ -1,13 +1,29 @@
 .gitkeep
+Boton de Continuar base.png
+Boton de Continuar.png
+Boton de Craftear base.png
+Boton de Craftear.jpeg
 MapaAzulPokemon.tmx
 MapaVerdePokemon.tmx
+Marco 8bit Goma.png
+Marco 8bit Madera.png
+Marco 8bit Plastico.png
+Marco 8bit a color.png
+Marco 8bit.png
+MarcoInventario.png
+MarcoInventario2.png
+MarcoInventariobase.png
 Multiplayer.png
 MultiplayerC.png
 Opciones.png
 OpcionesC.png
 PartidaIndividual.png
 PartidaIndividualC.png
+PokeCura.png
+PokeExp.png
+Pokeball.png
 PokebolaVerde.tsx
+Pokepausa.png
 Salir.png
 SalirC.png
 TexturasVerde.tsx

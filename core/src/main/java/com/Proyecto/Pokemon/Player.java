@@ -29,6 +29,8 @@ public class Player {
     private boolean moviendose = false;
     private float stateTime = 0f;
 
+    private Almacenamiento inventario;
+
     /**
      * Constructor del jugador.
      *
@@ -38,6 +40,7 @@ public class Player {
     public Player(float x, float y) {
         this.posicion = new Vector2(x, y);
         this.destino = new Vector2(x, y);
+        this.inventario = new Almacenamiento();
         texture = new Texture(Gdx.files.internal("player_sprite.png"));
 
         // Configuracion de la hoja de sprites (asumimos 4x4).
@@ -107,17 +110,16 @@ public class Player {
         else if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.RIGHT))
             intentarMover(1, 0, mapa);
 
+        // Imprimir inventario al pulsar la tecla E.
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.E)) {
+            inventario.imprimirInventario();
+        }
+
         // Accion al pulsar la tecla ENTER.
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
-            // Primero intentamos interactuar con la posicion actual (pisando el objeto).
-            boolean interactuado = mapa.interactuar(destino.x, destino.y);
-
-            if (!interactuado) {
-                // Si no hay nada debajo, probamos con la baldosa que tenemos en frente.
-                float targetX = destino.x + direccionMirada.x;
-                float targetY = destino.y + direccionMirada.y;
-                mapa.interactuar(targetX, targetY);
-            }
+            // Solo interactuamos con la posicion actual (pisando el objeto), como solicito
+            // el usuario.
+            mapa.interactuar(destino.x, destino.y);
         }
     }
 
@@ -178,6 +180,18 @@ public class Player {
 
     public float getY() {
         return posicion.y;
+    }
+
+    public Vector2 getPosicion() {
+        return posicion;
+    }
+
+    public Vector2 getDestino() {
+        return destino;
+    }
+
+    public Almacenamiento getInventario() {
+        return inventario;
     }
 
     /**

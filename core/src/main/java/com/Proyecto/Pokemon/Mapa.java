@@ -4,6 +4,10 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
@@ -27,6 +31,34 @@ public class Mapa implements Screen {
     private OrthographicCamera camera;
     private Player jugador;
 
+    // --- ESTADO DE PAUSA ---
+    private boolean pausado = false;
+    private boolean inventarioAbierto = false;
+    private int opcionPausa = 0; // 0: Volver, 1: Opciones, 2: Salir
+    // --- ESTADO CRAFTEO ---
+    private boolean menuCrafteoAbierto = false;
+    private int opcionCrafteo = 1; // 0, 1, 2
+    private Texture marcoCrafteoSeleccionado;
+    private Texture marcoCrafteoNoSeleccionado;
+    private Texture pausaSalir, pausaSalirC, pausaVolver, pausaVolverC, pausaOpciones, pausaOpcionesC, pausaPokepausa;
+    private Texture marcoInventario, pixel;
+    private Texture texCraftear, texCraftearC;
+    private Texture marcoPlastico, marcoGoma, marcoMadera, marcoSlot, marcoSlotC;
+    private Texture texPokeCura, texPokeExp, texPokeball;
+    private BitmapFont font;
+
+    // --- ESTADO ERROR UI ---
+    private boolean mostrandoError = false;
+    private String mensajeError = "";
+    private float tiempoMensajeError = 0;
+
+    private static final int OPCIÓN_VOLVER = 0;
+    private static final int OPCIÓN_OPCIONES = 1;
+    private static final int OPCIÓN_SALIR = 2;
+    private static final int CANTIDAD_OPCIONES = 3;
+
+    private static final int INV_CRAFTEAR = 0;
+
     private float anchoMapa, altoMapa;
     // Escala unitaria: 1 unidad de mundo = 16 pixeles (tamaño de un tile).
     private static final float UNIT_SCALE = 1 / 16f;
@@ -49,8 +81,50 @@ public class Mapa implements Screen {
         altoMapa = mapaTiled.getProperties().get("height", Integer.class);
 
         camera = new OrthographicCamera();
-        // Inicializamos al jugador en la posicion inicial.
-        jugador = new Player(10f, 10f);
+        // Inicializamos al jugador desde Main para persistencia.
+        this.jugador = game.getJugador();
+
+        // Carga de texturas para el menu de pausa.
+        pausaSalir = new Texture(Gdx.files.internal("Salir.png"));
+        pausaSalirC = new Texture(Gdx.files.internal("SalirC.png"));
+        pausaVolver = new Texture(Gdx.files.internal("Boton de Continuar base.png"));
+        pausaVolverC = new Texture(Gdx.files.internal("Boton de Continuar.png"));
+        pausaOpciones = new Texture(Gdx.files.internal("Opciones.png"));
+        pausaOpcionesC = new Texture(Gdx.files.internal("OpcionesC.png"));
+        pausaPokepausa = new Texture(Gdx.files.internal("Pokepausa.png"));
+        marcoInventario = new Texture(Gdx.files.internal("MarcoInventario.png"));
+
+        // Inicializar fuente y textura de pixel blanco para dibujo manual.
+        font = new BitmapFont();
+        font.getData().setScale(1.5f);
+
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(Color.WHITE);
+        pixmap.fill();
+        pixel = new Texture(pixmap);
+        pixmap.dispose();
+
+        // Carga de nuevas texturas de inventario.
+        texCraftear = new Texture(Gdx.files.internal("Boton de Craftear base.png"));
+        texCraftearC = new Texture(Gdx.files.internal("Boton de Craftear.jpeg"));
+        marcoPlastico = new Texture(Gdx.files.internal("Marco 8bit Plastico.png"));
+        marcoGoma = new Texture(Gdx.files.internal("Marco 8bit Goma.png"));
+        marcoMadera = new Texture(Gdx.files.internal("Marco 8bit Madera.png"));
+        marcoSlot = new Texture(Gdx.files.internal("Marco 8bit.png"));
+        marcoSlotC = new Texture(Gdx.files.internal("Marco 8bit a color.png"));
+
+        // Carga de texturas de items individuales
+        texPokeCura = new Texture(Gdx.files.internal("PokeCura.png"));
+        texPokeExp = new Texture(Gdx.files.internal("PokeExp.png"));
+        texPokeball = new Texture(Gdx.files.internal("Pokeball.png"));
+
+        // Carga del marco amarillo para crafteo
+        marcoCrafteoSeleccionado = new Texture(Gdx.files.internal("MarcoInventariobase.png"));
+        // Carga del marco azul para crafteo no seleccionado
+        marcoCrafteoNoSeleccionado = new Texture(Gdx.files.internal("MarcoInventario2.png"));
+
+        // Configurar filtro de fuente para estilo retro/pixelado
+        font.getRegion().getTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
     }
 
     /**
@@ -83,10 +157,26 @@ public class Mapa implements Screen {
                     }
 
                     // PRIORIDAD 2: Recoger objetos del suelo.
-                    // Condicion: Es de tipo "recogible" (en el tile), es una Pokébola, O la CAPA es
-                    // recogible.
+                    // Condicion: Es de tipo "recogible", es una Pokébola, O la CAPA es recogible.
                     if (esRecogible(cell.getTile()) || esCapaRecogible(layer)) {
-                        borrarAreaRecogible(cellX, cellY);
+                        String nombreObjeto = "Objeto";
+                        String categoria = "item";
+
+                        // Intentamos obtener el nombre de las nuevas propiedades.
+                        if (getPropiedad(cell.getTile(), "Tipo") != null) {
+                            nombreObjeto = getPropiedad(cell.getTile(), "Tipo");
+                            categoria = "pokeball";
+                        } else if (getPropiedad(cell.getTile(), "Item") != null) {
+                            nombreObjeto = getPropiedad(cell.getTile(), "Item");
+                            categoria = "item";
+                        }
+
+                        try {
+                            jugador.getInventario().agregarObjeto(nombreObjeto, categoria);
+                            borrarAreaRecogible(cellX, cellY);
+                        } catch (ExcepcionInventarioLleno e) {
+                            mostrarError(e.getMessage());
+                        }
                         return true;
                     }
                 }
@@ -175,8 +265,9 @@ public class Mapa implements Screen {
         if ("inicio".equalsIgnoreCase(tipo))
             return false;
 
-        // Si tiene la propiedad explícita de "recogible".
-        if ("recogible".equalsIgnoreCase(tipo))
+        // Si tiene la propiedad explícita de "recogible" o tiene Tipo/Item.
+        if ("recogible".equalsIgnoreCase(tipo) || getPropiedad(tile, "Tipo") != null
+                || getPropiedad(tile, "Item") != null)
             return true;
 
         // Comprobación por nombre del conjunto de patrones (tileset).
@@ -306,6 +397,12 @@ public class Mapa implements Screen {
                             if (!siguienteMapa.endsWith(".tmx")) {
                                 siguienteMapa += ".tmx";
                             }
+
+                            // IMPORTANTE: Reseteamos la posición del jugador para el nuevo mapa.
+                            // Podríamos guardarla en propiedades del portal si fuera necesario.
+                            jugador.getPosicion().set(10, 10);
+                            jugador.getDestino().set(10, 10);
+
                             game.setScreen(new Mapa(game, siguienteMapa));
                             dispose();
                         }
@@ -322,8 +419,39 @@ public class Mapa implements Screen {
      */
     @Override
     public void render(float delta) {
-        // Actualizamos al jugador y la camara.
-        jugador.update(delta, this);
+        // Al pulsar ESCAPE alternamos la pausa.
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            if (!inventarioAbierto && !menuCrafteoAbierto) { // Evitar abrir pausa si estamos crafteando
+                pausado = !pausado;
+            } else if (menuCrafteoAbierto) {
+                // Opcional: ESCAPE en crafteo cierra el menu (redundante con logica interna,
+                // pero seguridad)
+                menuCrafteoAbierto = false;
+            }
+        }
+
+        // Al pulsar E alternamos el inventario.
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.E)) {
+            if (!pausado) {
+                if (menuCrafteoAbierto) {
+                    menuCrafteoAbierto = false;
+                    inventarioAbierto = true; // Volver al inv
+                } else {
+                    inventarioAbierto = !inventarioAbierto;
+                }
+            }
+        }
+
+        if (pausado) {
+            actualizarEntradaPausa();
+        } else if (menuCrafteoAbierto) {
+            actualizarEntradaCrafteo();
+        } else if (inventarioAbierto) {
+            actualizarEntradaInventario();
+        } else {
+            // Solo actualizamos al jugador si no esta pausado ni en inventario.
+            jugador.update(delta, this);
+        }
 
         float halfWidth = camera.viewportWidth / 2f;
         float halfHeight = camera.viewportHeight / 2f;
@@ -349,6 +477,242 @@ public class Mapa implements Screen {
         game.batch.begin();
         jugador.draw(game.batch);
         game.batch.end();
+
+        // DIBUJAR OVERLAY DE PAUSA
+        if (pausado) {
+            dibujarMenuPausa();
+        } else if (menuCrafteoAbierto) {
+            dibujarMenuCrafteo();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
+        } else if (inventarioAbierto) {
+            dibujarInventario();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
+        } else {
+            if (mostrandoError)
+                dibujarCuadroError(delta); // Mostrar error en juego normal (ej: pickup)
+        }
+    }
+
+    /**
+     * Gestiona la entrada del teclado cuando el juego esta en pausa.
+     */
+    private void actualizarEntradaPausa() {
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.UP)) {
+            opcionPausa = (opcionPausa - 1 + CANTIDAD_OPCIONES) % CANTIDAD_OPCIONES;
+        } else if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.DOWN)) {
+            opcionPausa = (opcionPausa + 1) % CANTIDAD_OPCIONES;
+        }
+
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
+            if (opcionPausa == OPCIÓN_VOLVER) {
+                pausado = false;
+            } else if (opcionPausa == OPCIÓN_OPCIONES) {
+                Gdx.app.log("PAUSA", "Opciones no implementadas aun.");
+            } else if (opcionPausa == OPCIÓN_SALIR) {
+                Gdx.app.exit();
+            }
+        }
+    }
+
+    /**
+     * Dibuja los elementos visuales del menu de pausa.
+     */
+    private void dibujarMenuPausa() {
+        // Usamos una proyeccion estatica para el menu (coordenadas de pantalla).
+        // Sin embargo, para mantenerlo simple y centrado, usaremos una proporcion
+        // local.
+        float pantallaAncho = Gdx.graphics.getWidth();
+        float pantallaAlto = Gdx.graphics.getHeight();
+
+        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, pantallaAncho, pantallaAlto);
+        game.batch.begin();
+
+        // Filtro negro semi-transparente.
+        game.batch.setColor(0, 0, 0, 0.5f);
+        // Dibujamos un fondo oscuro (opcional, si no hay textura de fondo)
+        // Pero el usuario pidió Pokepausa grande en el medio.
+        game.batch.setColor(1, 1, 1, 1); // Reset de color.
+
+        // Imagen Pokepausa grande en el medio
+        float pokeW = pantallaAncho * 0.4f; // Reducido de 0.6f a 0.4f
+        float pokeH = (pokeW / pausaPokepausa.getWidth()) * pausaPokepausa.getHeight();
+        game.batch.draw(pausaPokepausa, pantallaAncho * 0.55f, (pantallaAlto - pokeH) / 2f, pokeW, pokeH);
+
+        float btnW = pantallaAncho * 0.3f;
+        float btnH = pantallaAlto * 0.1f;
+        float x = pantallaAncho * 0.05f; // Margen del 5% desde la izquierda
+
+        // Boton Volver (arriba).
+        Texture texVolver = (opcionPausa == OPCIÓN_VOLVER) ? pausaVolverC : pausaVolver;
+        game.batch.draw(texVolver, x, pantallaAlto / 2f + btnH + 15, btnW, btnH);
+
+        // Boton Opciones (medio).
+        Texture texOpciones = (opcionPausa == OPCIÓN_OPCIONES) ? pausaOpcionesC : pausaOpciones;
+        game.batch.draw(texOpciones, x, pantallaAlto / 2f, btnW, btnH);
+
+        // Boton Salir (abajo).
+        Texture texSalir = (opcionPausa == OPCIÓN_SALIR) ? pausaSalirC : pausaSalir;
+        game.batch.draw(texSalir, x, pantallaAlto / 2f - btnH - 15, btnW, btnH);
+
+        game.batch.end();
+
+        // Restauramos la proyeccion de la camara para el siguiente frame.
+        game.batch.setProjectionMatrix(camera.combined);
+    }
+
+    /**
+     * Dibuja los elementos visuales del inventario siguiendo el mockup
+     * proporcionado.
+     */
+    private void dibujarInventario() {
+        float sw = Gdx.graphics.getWidth();
+        float sh = Gdx.graphics.getHeight();
+
+        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, sw, sh);
+        game.batch.begin();
+
+        // 1. Fondo Oscuro semi-transparente
+        game.batch.setColor(0, 0, 0, 0.5f);
+        game.batch.draw(pixel, 0, 0, sw, sh);
+        game.batch.setColor(1, 1, 1, 1); // Reset para que los botones no sean transparentes
+
+        // 2. BOTONES SUPERIORES (Craftear a la izquierda)
+        float topBtnW = sw * 0.28f;
+        float topBtnH = sh * 0.1f;
+        float topBtnY = sh * 0.85f;
+        float startX = 50; // Izquierda
+
+        dibujarBotonTop(INV_CRAFTEAR, startX, topBtnY, topBtnW, topBtnH, true);
+
+        // 3. CUADRO PRINCIPAL (Usando marcoInventario)
+        float marcoW = sw * 0.85f;
+        float marcoH = sh * 0.78f; // Expandido para evitar choque
+        float marcoX = (sw - marcoW) / 2f;
+        float marcoY = sh * 0.05f; // Bajado un poco
+
+        game.batch.setColor(1, 1, 1, 1);
+        game.batch.draw(marcoInventario, marcoX, marcoY, marcoW, marcoH);
+
+        // 4. LISTA DE ITEMS (Fijos: Plastico, Goma, Madera)
+        float itemW = marcoW * 0.45f;
+        float itemH = marcoH * 0.18f;
+        float itemX = marcoX + 70;
+        float itemStartY = marcoY + marcoH - itemH - 80;
+
+        String[] itemsFijos = { "Plastico", "Goma", "Madera" };
+        java.util.HashMap<String, Integer> inv = jugador.getInventario().getMapa();
+
+        for (int i = 0; i < itemsFijos.length; i++) {
+            String itemNombre = itemsFijos[i];
+            int cantidad = inv.getOrDefault(itemNombre, 0);
+            float currentY = itemStartY - i * (itemH + 30);
+            dibujarItemBox(itemNombre, cantidad, itemX, currentY, itemW, itemH);
+        }
+
+        // 5. SLOTS DE LA DERECHA (PokeballCura, PokeballEXP, Pokeball)
+        float slotW = marcoW * 0.15f;
+        float slotH = marcoH * 0.2f;
+        float slotX = marcoX + marcoW - slotW - 100;
+
+        String[] pokeballsFijas = { "PokeballCura", "PokeballEXP", "Pokeball" };
+        float pbOffsetY = -15; // Bajar un poco las casillas
+        for (int j = 0; j < pokeballsFijas.length; j++) {
+            String pbNombre = pokeballsFijas[j];
+            int cantidadpb = inv.getOrDefault(pbNombre, 0);
+            float currentY = itemStartY - j * (slotH + 15) + pbOffsetY;
+
+            // Dibujar el slot (resaltado si se tiene el item)
+            dibujarSlot(slotX, currentY, slotW, slotH, cantidadpb > 0);
+
+            // Dibujar el icono de la pokebola si se tiene
+            if (cantidadpb > 0) {
+                Texture pbTex = null;
+                if (j == 0)
+                    pbTex = texPokeCura;
+                else if (j == 1)
+                    pbTex = texPokeExp;
+                else if (j == 2)
+                    pbTex = texPokeball;
+
+                if (pbTex != null) {
+                    float iconSize = slotW * 0.6f;
+                    game.batch.setColor(1, 1, 1, 1);
+                    game.batch.draw(pbTex, slotX + (slotW - iconSize) / 2f, currentY + (slotH - iconSize) / 2f + 5,
+                            iconSize, iconSize);
+
+                    font.setColor(Color.WHITE);
+                    font.getData().setScale(1.2f);
+                    font.draw(game.batch, "x" + cantidadpb, slotX + slotW - 40, currentY + 30);
+                    font.getData().setScale(1.5f);
+                }
+            }
+        }
+
+        game.batch.end();
+        game.batch.setProjectionMatrix(camera.combined);
+    }
+
+    private void dibujarBotonTop(int tipo, float x, float y, float w, float h, boolean activo) {
+        Texture tex = null;
+        if (tipo == INV_CRAFTEAR)
+            tex = activo ? texCraftearC : texCraftear;
+
+        if (tex != null) {
+            game.batch.draw(tex, x, y, w, h);
+        }
+    }
+
+    private void dibujarItemBox(String nombre, int cantidad, float x, float y, float w, float h) {
+        Texture tex = null;
+        if (cantidad > 0) {
+            if ("Plastico".equalsIgnoreCase(nombre))
+                tex = marcoPlastico;
+            else if ("Goma".equalsIgnoreCase(nombre))
+                tex = marcoGoma;
+            else if ("Madera".equalsIgnoreCase(nombre))
+                tex = marcoMadera;
+        } else {
+            tex = marcoSlot; // Marco vacio por defecto
+        }
+
+        if (tex != null) {
+            game.batch.setColor(1, 1, 1, 1);
+            game.batch.draw(tex, x, y, w, h);
+        } else {
+            // Vacío
+            game.batch.setColor(0, 0, 0, 0.2f);
+            game.batch.draw(pixel, x, y, w, h);
+            game.batch.setColor(1, 1, 1, 1);
+        }
+
+        // Cantidad (si es > 0)
+        if (cantidad > 0) {
+            font.setColor(Color.BLACK); // Usamos negro para que destaque sobre el verde/amarillo
+            if (tex != null) {
+                // Ajustamos posición del texto si usamos la imagen de 8 bits
+                font.draw(game.batch, "x" + cantidad, x + w * 0.75f, y + h * 0.65f);
+            } else {
+                font.draw(game.batch, "x" + cantidad, x + w - 60, y + h / 2f + 10);
+            }
+        }
+    }
+
+    private void dibujarSlot(float x, float y, float w, float h, boolean resaltado) {
+        Texture tex = resaltado ? marcoSlotC : marcoSlot;
+        game.batch.draw(tex, x, y, w, h);
+    }
+
+    /**
+     * Gestiona la entrada del teclado cuando el inventario esta abierto.
+     */
+    private void actualizarEntradaInventario() {
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
+            // Ir a crafteo (siempre activo)
+            menuCrafteoAbierto = true;
+            opcionCrafteo = 1;
+        }
     }
 
     @Override
@@ -365,7 +729,244 @@ public class Mapa implements Screen {
         // Liberar recursos de LibGDX.
         mapaTiled.dispose();
         renderer.dispose();
-        jugador.dispose();
+        // NO disponemos al jugador aqui porque es persistente en Main.
+        pausaSalir.dispose();
+        pausaSalirC.dispose();
+        pausaVolver.dispose();
+        pausaVolverC.dispose();
+        pausaOpciones.dispose();
+        pausaOpcionesC.dispose();
+        pausaPokepausa.dispose();
+        marcoInventario.dispose();
+        pixel.dispose();
+        font.dispose();
+        texCraftear.dispose();
+        texCraftearC.dispose();
+        marcoPlastico.dispose();
+        marcoGoma.dispose();
+        marcoMadera.dispose();
+        marcoSlot.dispose();
+        marcoSlotC.dispose();
+        texPokeCura.dispose();
+        texPokeExp.dispose();
+        texPokeball.dispose();
+        marcoCrafteoSeleccionado.dispose();
+        if (marcoCrafteoNoSeleccionado != null)
+            marcoCrafteoNoSeleccionado.dispose();
+    }
+
+    /**
+     * Dibuja el menu de crafteo con 3 opciones.
+     */
+    private void dibujarMenuCrafteo() {
+        float sw = Gdx.graphics.getWidth();
+        float sh = Gdx.graphics.getHeight();
+
+        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, sw, sh);
+        game.batch.begin();
+
+        // Fondo oscuro
+        game.batch.setColor(0, 0, 0, 0.7f);
+        game.batch.draw(pixel, 0, 0, sw, sh);
+        game.batch.setColor(1, 1, 1, 1);
+
+        // Dimensiones de los marcos
+        float frameW = sw * 0.25f;
+        float frameH = sh * 0.5f;
+        float spacing = sw * 0.05f;
+
+        // Calculamos X inicial para que esten centrados
+        float totalW = (frameW * 3) + (spacing * 2);
+        float startX = (sw - totalW) / 2f;
+        float y = (sh - frameH) / 2f;
+
+        // Datos para las recetas
+        String[] nombresItems = { "Pokeball", "PokeballEXP", "PokeballCura" };
+        Texture[] iconos = { texPokeball, texPokeExp, texPokeCura };
+        String[] recetasTexto = {
+                "Plastico\nGoma",
+                "Madera\nGoma",
+                "Plastico\nMadera"
+        };
+
+        for (int i = 0; i < 3; i++) {
+            float x = startX + i * (frameW + spacing);
+
+            // Elegir marco segun seleccion
+            // NOTA: Si opcionCrafteo == 3 (Salir), ninguno de estos debe estar
+            // seleccionado.
+            boolean isSelected = (i == opcionCrafteo);
+            Texture marco = isSelected ? marcoCrafteoSeleccionado : marcoCrafteoNoSeleccionado;
+            if (marco == null)
+                marco = marcoCrafteoSeleccionado; // Fallback
+
+            // Dibujar marco
+            game.batch.setColor(1, 1, 1, 1);
+            game.batch.draw(marco, x, y, frameW, frameH);
+
+            // Dibujar Icono
+            float iconSize = frameW * 0.4f;
+            float iconX = x + (frameW - iconSize) / 2f;
+            float iconY = y + frameH * 0.55f;
+            game.batch.draw(iconos[i], iconX, iconY, iconSize, iconSize);
+
+            // Dibujar Nombre debajo del Icono
+            font.setColor(Color.BLACK);
+            font.getData().setScale(1.3f);
+            String nombre = nombresItems[i];
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutN = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
+                    nombre);
+            font.draw(game.batch, nombre, x + (frameW - layoutN.width) / 2f, iconY - 10);
+
+            // Dibujar Texto (Ingredientes)
+            font.getData().setScale(1.2f);
+
+            String texto = recetasTexto[i];
+            String[] lineas = texto.split("\n");
+            float textY = y + frameH * 0.35f; // Mas abajo
+            for (String linea : lineas) {
+                // Centrado aproximado
+                com.badlogic.gdx.graphics.g2d.GlyphLayout layout = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
+                        linea);
+                float textX = x + (frameW - layout.width) / 2f;
+                font.draw(game.batch, linea, textX, textY);
+                textY -= 40;
+            }
+        }
+
+        game.batch.setColor(1, 1, 1, 1);
+        game.batch.end();
+        game.batch.setProjectionMatrix(camera.combined);
+    }
+
+    /**
+     * Gestiona la entrada en el menu de crafteo.
+     */
+    private void actualizarEntradaCrafteo() {
+        // Navegacion horizontal entre slots
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.LEFT)) {
+            opcionCrafteo = (opcionCrafteo - 1 + 3) % 3;
+        } else if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.RIGHT)) {
+            opcionCrafteo = (opcionCrafteo + 1) % 3;
+        }
+
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            menuCrafteoAbierto = false; // Volver al inventario
+        }
+
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
+            try {
+                intentarCrafteo();
+            } catch (ExcepcionMaterialesInsuficientes | ExcepcionInventarioLleno e) {
+                mostrarError(e.getMessage());
+            }
+        }
+    }
+
+    private void intentarCrafteo() throws ExcepcionMaterialesInsuficientes, ExcepcionInventarioLleno {
+        java.util.HashMap<String, Integer> inv = jugador.getInventario().getMapa();
+        String i1 = "", i2 = "";
+        String producto = "";
+        String tipoProducto = "pokeball";
+
+        // Definir recetas
+        if (opcionCrafteo == 0) { // Pokeball
+            i1 = "Plastico";
+            i2 = "Goma";
+            producto = "Pokeball";
+        } else if (opcionCrafteo == 1) { // PokeballEXP
+            i1 = "Madera";
+            i2 = "Goma";
+            producto = "PokeballEXP";
+        } else if (opcionCrafteo == 2) { // PokeballCura
+            i1 = "Plastico";
+            i2 = "Madera";
+            producto = "PokeballCura";
+        }
+
+        int c1 = inv.getOrDefault(i1, 0);
+        int c2 = inv.getOrDefault(i2, 0);
+
+        if (c1 >= 1 && c2 >= 1) {
+            // Verificar espacio antes de consumir
+            // NOTA: AgregarObjeto lanzará excepcion si está lleno, pero es mejor saber
+            // antes.
+            // Para ser atomicos, simularemos validacion.
+
+            // Si el objeto ya existe y tiene >= 10, agregarObjeto tirara excepcion.
+            // Asi que consumimos y luego agregamos? No, si falla el agregar perdemos items.
+            // Primero intentamos agregar (dry run) o confiamos en la excepcion.
+            // Almacenamiento no tiene metodo canAdd pero agregarObjeto verifica.
+            // Sin embargo agregarObjeto modifica el estado.
+            // Verificamos manualmente:
+            int cantProd = inv.getOrDefault(producto, 0);
+            if (cantProd >= 10) { // 10 es MAX_ITEMS, debería ser publico en Almacenamiento o hardcoded igual
+                throw new ExcepcionInventarioLleno("Inventario lleno para " + producto);
+            }
+
+            // Consumir
+            inv.put(i1, c1 - 1);
+            inv.put(i2, c2 - 1);
+
+            try {
+                // Producir
+                jugador.getInventario().agregarObjeto(producto, tipoProducto);
+                System.out.println("Crafteado: " + producto);
+            } catch (ExcepcionInventarioLleno e) {
+                // Si falla (race condition rara), devolver materiales
+                inv.put(i1, c1);
+                inv.put(i2, c2);
+                throw e;
+            }
+
+        } else {
+            throw new ExcepcionMaterialesInsuficientes("Faltan materiales para " + producto);
+        }
+    }
+
+    private void mostrarError(String mensaje) {
+        this.mostrandoError = true;
+        this.mensajeError = mensaje;
+        this.tiempoMensajeError = 3.0f; // 3 segundos
+    }
+
+    private void dibujarCuadroError(float delta) {
+        if (!mostrandoError)
+            return;
+
+        tiempoMensajeError -= delta;
+        if (tiempoMensajeError <= 0) {
+            mostrandoError = false;
+        }
+
+        float sw = Gdx.graphics.getWidth();
+        float sh = Gdx.graphics.getHeight();
+
+        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, sw, sh);
+        game.batch.begin();
+
+        // Cuadro Rojo de Error
+        float w = sw * 0.6f;
+        float h = sh * 0.2f;
+        float x = (sw - w) / 2f;
+        float y = (sh - h) / 2f;
+
+        game.batch.setColor(0.8f, 0, 0, 0.9f);
+        game.batch.draw(pixel, x, y, w, h);
+
+        // Buser
+        game.batch.setColor(1, 1, 1, 1);
+        // Marco simple (opcional)
+        // ...
+
+        font.setColor(Color.WHITE);
+        font.getData().setScale(1.5f);
+        com.badlogic.gdx.graphics.g2d.GlyphLayout layout = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
+                mensajeError);
+        font.draw(game.batch, mensajeError, x + (w - layout.width) / 2f, y + (h + layout.height) / 2f);
+
+        game.batch.end();
+        game.batch.setProjectionMatrix(camera.combined);
     }
 
     @Override
