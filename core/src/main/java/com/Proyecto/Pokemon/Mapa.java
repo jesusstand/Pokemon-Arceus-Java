@@ -18,6 +18,8 @@ import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.objects.RectangleMapObject;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.maps.tiled.objects.TiledMapTileMapObject;
+import java.util.HashMap;
+import java.util.Iterator;
 
 /**
  * Pantalla principal del juego donde ocurre la accion.
@@ -52,9 +54,9 @@ public class Mapa implements Screen {
     private String mensajeError = "";
     private float tiempoMensajeError = 0;
 
-    private static final int OPCIÓN_VOLVER = 0;
-    private static final int OPCIÓN_OPCIONES = 1;
-    private static final int OPCIÓN_SALIR = 2;
+    private static final int OPCION_VOLVER = 0;
+    private static final int OPCION_OPCIONES = 1;
+    private static final int OPCION_SALIR = 2;
     private static final int CANTIDAD_OPCIONES = 3;
 
     private static final int INV_CRAFTEAR = 0;
@@ -292,7 +294,7 @@ public class Mapa implements Screen {
     private String getPropiedad(com.badlogic.gdx.maps.tiled.TiledMapTile tile, String key) {
         if (tile == null || tile.getProperties() == null)
             return null;
-        for (java.util.Iterator<String> it = tile.getProperties().getKeys(); it.hasNext();) {
+        for (Iterator<String> it = tile.getProperties().getKeys(); it.hasNext();) {
             String k = it.next();
             if (k.equalsIgnoreCase(key)) {
                 return tile.getProperties().get(k).toString();
@@ -506,11 +508,11 @@ public class Mapa implements Screen {
         }
 
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
-            if (opcionPausa == OPCIÓN_VOLVER) {
+            if (opcionPausa == OPCION_VOLVER) {
                 pausado = false;
-            } else if (opcionPausa == OPCIÓN_OPCIONES) {
+            } else if (opcionPausa == OPCION_OPCIONES) {
                 Gdx.app.log("PAUSA", "Opciones no implementadas aun.");
-            } else if (opcionPausa == OPCIÓN_SALIR) {
+            } else if (opcionPausa == OPCION_SALIR) {
                 Gdx.app.exit();
             }
         }
@@ -545,15 +547,15 @@ public class Mapa implements Screen {
         float x = pantallaAncho * 0.05f; // Margen del 5% desde la izquierda
 
         // Boton Volver (arriba).
-        Texture texVolver = (opcionPausa == OPCIÓN_VOLVER) ? pausaVolverC : pausaVolver;
+        Texture texVolver = (opcionPausa == OPCION_VOLVER) ? pausaVolverC : pausaVolver;
         game.batch.draw(texVolver, x, pantallaAlto / 2f + btnH + 15, btnW, btnH);
 
         // Boton Opciones (medio).
-        Texture texOpciones = (opcionPausa == OPCIÓN_OPCIONES) ? pausaOpcionesC : pausaOpciones;
+        Texture texOpciones = (opcionPausa == OPCION_OPCIONES) ? pausaOpcionesC : pausaOpciones;
         game.batch.draw(texOpciones, x, pantallaAlto / 2f, btnW, btnH);
 
         // Boton Salir (abajo).
-        Texture texSalir = (opcionPausa == OPCIÓN_SALIR) ? pausaSalirC : pausaSalir;
+        Texture texSalir = (opcionPausa == OPCION_SALIR) ? pausaSalirC : pausaSalir;
         game.batch.draw(texSalir, x, pantallaAlto / 2f - btnH - 15, btnW, btnH);
 
         game.batch.end();
@@ -602,7 +604,7 @@ public class Mapa implements Screen {
         float itemStartY = marcoY + marcoH - itemH - 80;
 
         String[] itemsFijos = { "Plastico", "Goma", "Madera" };
-        java.util.HashMap<String, Integer> inv = jugador.getInventario().getMapa();
+        HashMap<String, Integer> inv = jugador.getInventario().getMapa();
 
         for (int i = 0; i < itemsFijos.length; i++) {
             String itemNombre = itemsFijos[i];
@@ -864,7 +866,7 @@ public class Mapa implements Screen {
     }
 
     private void intentarCrafteo() throws ExcepcionMaterialesInsuficientes, ExcepcionInventarioLleno {
-        java.util.HashMap<String, Integer> inv = jugador.getInventario().getMapa();
+        HashMap<String, Integer> inv = jugador.getInventario().getMapa();
         String i1 = "", i2 = "";
         String producto = "";
         String tipoProducto = "pokeball";
@@ -954,7 +956,7 @@ public class Mapa implements Screen {
         game.batch.setColor(0.8f, 0, 0, 0.9f);
         game.batch.draw(pixel, x, y, w, h);
 
-        // Buser
+        // Borde
         game.batch.setColor(1, 1, 1, 1);
         // Marco simple (opcional)
         // ...
