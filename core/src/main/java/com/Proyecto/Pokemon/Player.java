@@ -82,6 +82,8 @@ public class Player {
                 moviendose = false;
                 // Comprobamos si hay algun portal en la nueva posicion.
                 mapa.revisarPortales(posicion.x, posicion.y);
+                // Verificar si está en hierba y puede aparecer un Pokemon
+                mapa.verificarEncuentroPokemon(destino.x, destino.y);
                 // Si el usuario mantiene pulsada una tecla, continuamos el movimiento.
                 revisarEntrada(mapa);
             } else {

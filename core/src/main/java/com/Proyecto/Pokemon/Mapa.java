@@ -40,6 +40,9 @@ public class Mapa implements Screen {
     // --- ESTADO CRAFTEO ---
     private boolean menuCrafteoAbierto = false;
     private int opcionCrafteo = 1; // 0, 1, 2
+    // --- ESTADO POKEMON CAPTURADOS ---
+    private boolean menuPokemonAbierto = false;
+    private int pokemonSeleccionado = 0; // Índice del Pokemon seleccionado
     private Texture marcoCrafteoSeleccionado;
     private Texture marcoCrafteoNoSeleccionado;
     private Texture pausaSalir, pausaSalirC, pausaVolver, pausaVolverC, pausaOpciones, pausaOpcionesC, pausaPokepausa;
@@ -54,10 +57,15 @@ public class Mapa implements Screen {
     private String mensajeError = "";
     private float tiempoMensajeError = 0;
 
-    private static final int OPCION_VOLVER = 0;
-    private static final int OPCION_OPCIONES = 1;
-    private static final int OPCION_SALIR = 2;
-    private static final int CANTIDAD_OPCIONES = 3;
+    // --- ESTADO ENCUENTRO POKEMON ---
+    private SpawnPokemon spawnPokemon;
+    private Pokemon pokemonSalvaje;
+    private boolean enEncuentro = false;
+    private CapturaPokemon sistemaCaptura;
+
+    private static final int OPCION_REANUDAR = 0;
+    private static final int OPCION_SALIR_MENU = 1;
+    private static final int CANTIDAD_OPCIONES = 2;
 
     private static final int INV_CRAFTEAR = 0;
 
@@ -85,6 +93,10 @@ public class Mapa implements Screen {
         camera = new OrthographicCamera();
         // Inicializamos al jugador desde Main para persistencia.
         this.jugador = game.getJugador();
+
+        // Inicializar sistema de spawn y captura de Pokemon
+        this.spawnPokemon = new SpawnPokemon();
+        this.sistemaCaptura = new CapturaPokemon(jugador.getInventario());
 
         // Carga de texturas para el menu de pausa.
         pausaSalir = new Texture(Gdx.files.internal("Salir.png"));
@@ -368,6 +380,68 @@ public class Mapa implements Screen {
     }
 
     /**
+     * Verifica si el jugador está en un tile de hierba.
+     * 
+     * @param x Coordenada X del jugador.
+     * @param y Coordenada Y del jugador.
+     * @return true si está en hierba, false si no.
+     */
+    public boolean estaEnHierba(float x, float y) {
+        int cellX = (int) x;
+        int cellY = (int) y;
+
+        // Recorremos todas las capas del mapa
+        for (MapLayer layer : mapaTiled.getLayers()) {
+            if (layer instanceof TiledMapTileLayer) {
+                TiledMapTileLayer tileLayer = (TiledMapTileLayer) layer;
+                TiledMapTileLayer.Cell cell = tileLayer.getCell(cellX, cellY);
+
+                if (cell != null && cell.getTile() != null) {
+                    // Verificar si el tile tiene la propiedad "hierba" o "grass"
+                    String tipo = getPropiedad(cell.getTile(), "tipo");
+                    if ("hierba".equalsIgnoreCase(tipo) || "grass".equalsIgnoreCase(tipo)) {
+                        return true;
+                    }
+
+                    // También verificar si la capa tiene la propiedad de hierba
+                    String tipoCapa = null;
+                    if (layer.getProperties().containsKey("tipo")) {
+                        tipoCapa = layer.getProperties().get("tipo", String.class);
+                    }
+                    if ("hierba".equalsIgnoreCase(tipoCapa) || "grass".equalsIgnoreCase(tipoCapa)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Verifica si debe aparecer un Pokemon salvaje al caminar sobre hierba.
+     * 
+     * @param x Coordenada X del jugador.
+     * @param y Coordenada Y del jugador.
+     */
+    public void verificarEncuentroPokemon(float x, float y) {
+        // Solo verificar si no estamos ya en un encuentro
+        if (enEncuentro) {
+            return;
+        }
+
+        // Verificar si está en hierba
+        if (estaEnHierba(x, y)) {
+            // Intentar spawn de Pokemon
+            Pokemon pokemonEncontrado = spawnPokemon.verificarEncuentro();
+            if (pokemonEncontrado != null) {
+                pokemonSalvaje = pokemonEncontrado;
+                enEncuentro = true;
+                System.out.println("¡Un " + pokemonSalvaje.getNombre() + " salvaje apareció!");
+            }
+        }
+    }
+
+    /**
      * Detecta si el jugador esta en un portal y cambia de mapa.
      * 
      * @param x Coordenada X del jugador.
@@ -434,7 +508,7 @@ public class Mapa implements Screen {
 
         // Al pulsar E alternamos el inventario.
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.E)) {
-            if (!pausado) {
+            if (!pausado && !menuPokemonAbierto) {
                 if (menuCrafteoAbierto) {
                     menuCrafteoAbierto = false;
                     inventarioAbierto = true; // Volver al inv
@@ -444,8 +518,22 @@ public class Mapa implements Screen {
             }
         }
 
+        // Al pulsar P alternamos el menú de Pokemon capturados.
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
+            if (!pausado && !inventarioAbierto && !menuCrafteoAbierto && !enEncuentro) {
+                menuPokemonAbierto = !menuPokemonAbierto;
+                if (menuPokemonAbierto) {
+                    pokemonSeleccionado = 0; // Resetear selección al abrir
+                }
+            }
+        }
+
         if (pausado) {
             actualizarEntradaPausa();
+        } else if (enEncuentro) {
+            actualizarEntradaEncuentro();
+        } else if (menuPokemonAbierto) {
+            actualizarEntradaPokemon();
         } else if (menuCrafteoAbierto) {
             actualizarEntradaCrafteo();
         } else if (inventarioAbierto) {
@@ -483,6 +571,18 @@ public class Mapa implements Screen {
         // DIBUJAR OVERLAY DE PAUSA
         if (pausado) {
             dibujarMenuPausa();
+        } else if (enEncuentro) {
+            dibujarEncuentroPokemon();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
+        } else if (menuPokemonAbierto) {
+            dibujarMenuPokemon();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
+        } else if (menuPokemonAbierto) {
+            dibujarMenuPokemon();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
         } else if (menuCrafteoAbierto) {
             dibujarMenuCrafteo();
             if (mostrandoError)
@@ -508,12 +608,13 @@ public class Mapa implements Screen {
         }
 
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
-            if (opcionPausa == OPCION_VOLVER) {
+            if (opcionPausa == OPCION_REANUDAR) {
+                // Reanudar el juego
                 pausado = false;
-            } else if (opcionPausa == OPCION_OPCIONES) {
-                Gdx.app.log("PAUSA", "Opciones no implementadas aun.");
-            } else if (opcionPausa == OPCION_SALIR) {
-                Gdx.app.exit();
+            } else if (opcionPausa == OPCION_SALIR_MENU) {
+                // Salir al menú principal
+                game.setScreen(new MenuPrincipal(game));
+                dispose();
             }
         }
     }
@@ -545,18 +646,15 @@ public class Mapa implements Screen {
         float btnW = pantallaAncho * 0.3f;
         float btnH = pantallaAlto * 0.1f;
         float x = pantallaAncho * 0.05f; // Margen del 5% desde la izquierda
+        float centroY = pantallaAlto / 2f;
 
-        // Boton Volver (arriba).
-        Texture texVolver = (opcionPausa == OPCION_VOLVER) ? pausaVolverC : pausaVolver;
-        game.batch.draw(texVolver, x, pantallaAlto / 2f + btnH + 15, btnW, btnH);
+        // Boton Reanudar (arriba).
+        Texture texReanudar = (opcionPausa == OPCION_REANUDAR) ? pausaVolverC : pausaVolver;
+        game.batch.draw(texReanudar, x, centroY + btnH / 2f + 15, btnW, btnH);
 
-        // Boton Opciones (medio).
-        Texture texOpciones = (opcionPausa == OPCION_OPCIONES) ? pausaOpcionesC : pausaOpciones;
-        game.batch.draw(texOpciones, x, pantallaAlto / 2f, btnW, btnH);
-
-        // Boton Salir (abajo).
-        Texture texSalir = (opcionPausa == OPCION_SALIR) ? pausaSalirC : pausaSalir;
-        game.batch.draw(texSalir, x, pantallaAlto / 2f - btnH - 15, btnW, btnH);
+        // Boton Salir al Menú Principal (abajo).
+        Texture texSalir = (opcionPausa == OPCION_SALIR_MENU) ? pausaSalirC : pausaSalir;
+        game.batch.draw(texSalir, x, centroY - btnH / 2f - 15, btnW, btnH);
 
         game.batch.end();
 
@@ -715,6 +813,353 @@ public class Mapa implements Screen {
             menuCrafteoAbierto = true;
             opcionCrafteo = 1;
         }
+    }
+
+    /**
+     * Gestiona la entrada del teclado cuando el menú de Pokemon está abierto.
+     */
+    private void actualizarEntradaPokemon() {
+        java.util.List<Pokemon> pokemons = sistemaCaptura.getPokemonsCapturados();
+        
+        if (pokemons.isEmpty()) {
+            // Si no hay Pokemon, cerrar el menú con cualquier tecla
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE) || 
+                Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
+                menuPokemonAbierto = false;
+            }
+            return;
+        }
+
+        // Navegar con flechas arriba/abajo
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.UP)) {
+            pokemonSeleccionado = (pokemonSeleccionado - 1 + pokemons.size()) % pokemons.size();
+        }
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.DOWN)) {
+            pokemonSeleccionado = (pokemonSeleccionado + 1) % pokemons.size();
+        }
+
+        // Cerrar con ESCAPE o P
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE) || 
+            Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
+            menuPokemonAbierto = false;
+        }
+    }
+
+    /**
+     * Dibuja el menú de Pokemon capturados con todas sus especificaciones.
+     */
+    private void dibujarMenuPokemon() {
+        float sw = Gdx.graphics.getWidth();
+        float sh = Gdx.graphics.getHeight();
+
+        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, sw, sh);
+        game.batch.begin();
+
+        // Fondo oscuro semi-transparente
+        game.batch.setColor(0, 0, 0, 0.8f);
+        game.batch.draw(pixel, 0, 0, sw, sh);
+        game.batch.setColor(1, 1, 1, 1);
+
+        java.util.List<Pokemon> pokemons = sistemaCaptura.getPokemonsCapturados();
+
+        // Título
+        font.setColor(Color.YELLOW);
+        font.getData().setScale(2.5f);
+        String titulo = "POKEMON CAPTURADOS";
+        com.badlogic.gdx.graphics.g2d.GlyphLayout layoutTitulo = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, titulo);
+        font.draw(game.batch, titulo, (sw - layoutTitulo.width) / 2f, sh - 50);
+
+        if (pokemons.isEmpty()) {
+            // Mensaje si no hay Pokemon
+            font.setColor(Color.WHITE);
+            font.getData().setScale(2.0f);
+            String mensaje = "No has capturado ningún Pokemon aún";
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutMensaje = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, mensaje);
+            font.draw(game.batch, mensaje, (sw - layoutMensaje.width) / 2f, sh / 2f);
+
+            font.getData().setScale(1.5f);
+            String instruccion = "Presiona P o ESCAPE para cerrar";
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, instruccion);
+            font.draw(game.batch, instruccion, (sw - layoutInst.width) / 2f, sh / 2f - 60);
+        } else {
+            // Área de lista de Pokemon (izquierda)
+            float listaX = 50;
+            float listaY = sh - 150;
+            float listaW = sw * 0.35f;
+            float listaH = sh - 200;
+            float itemHeight = 60f;
+            int itemsVisibles = (int) (listaH / itemHeight);
+            
+            // Fondo de la lista
+            game.batch.setColor(0.15f, 0.15f, 0.15f, 0.9f);
+            game.batch.draw(pixel, listaX, listaY - listaH, listaW, listaH);
+            game.batch.setColor(1, 1, 1, 1);
+
+            // Borde de la lista
+            game.batch.setColor(0.6f, 0.6f, 0.6f, 1f);
+            float bordeGrosor = 3f;
+            game.batch.draw(pixel, listaX, listaY - listaH, listaW, bordeGrosor); // Arriba
+            game.batch.draw(pixel, listaX, listaY - listaH, bordeGrosor, listaH); // Izquierda
+            game.batch.draw(pixel, listaX + listaW - bordeGrosor, listaY - listaH, bordeGrosor, listaH); // Derecha
+            game.batch.draw(pixel, listaX, listaY - listaH - bordeGrosor, listaW, bordeGrosor); // Abajo
+            game.batch.setColor(1, 1, 1, 1);
+
+            // Dibujar lista de Pokemon
+            font.getData().setScale(1.3f);
+            int startIndex = Math.max(0, Math.min(pokemonSeleccionado - itemsVisibles / 2, 
+                Math.max(0, pokemons.size() - itemsVisibles)));
+            
+            for (int i = 0; i < itemsVisibles && (startIndex + i) < pokemons.size(); i++) {
+                int index = startIndex + i;
+                Pokemon p = pokemons.get(index);
+                float itemY = listaY - (i * itemHeight) - 30;
+                
+                // Resaltar el seleccionado
+                if (index == pokemonSeleccionado) {
+                    game.batch.setColor(0.3f, 0.5f, 0.8f, 0.7f);
+                    game.batch.draw(pixel, listaX + 5, itemY - itemHeight + 5, listaW - 10, itemHeight - 5);
+                    game.batch.setColor(1, 1, 1, 1);
+                }
+
+                // Nombre del Pokemon
+                font.setColor(index == pokemonSeleccionado ? Color.YELLOW : Color.WHITE);
+                String nombreTexto = (index + 1) + ". " + p.getNombre();
+                font.draw(game.batch, nombreTexto, listaX + 15, itemY);
+            }
+
+            // Área de detalles del Pokemon seleccionado (derecha)
+            if (pokemonSeleccionado >= 0 && pokemonSeleccionado < pokemons.size()) {
+                Pokemon p = pokemons.get(pokemonSeleccionado);
+                float detallesX = listaX + listaW + 30;
+                float detallesY = listaY;
+                float detallesW = sw - detallesX - 50;
+                float detallesH = listaH;
+
+                // Fondo de detalles
+                game.batch.setColor(0.2f, 0.2f, 0.2f, 0.9f);
+                game.batch.draw(pixel, detallesX, detallesY - detallesH, detallesW, detallesH);
+                game.batch.setColor(1, 1, 1, 1);
+
+                // Borde de detalles
+                game.batch.setColor(0.8f, 0.8f, 0.8f, 1f);
+                game.batch.draw(pixel, detallesX, detallesY, detallesW, bordeGrosor); // Arriba
+                game.batch.draw(pixel, detallesX, detallesY - detallesH, bordeGrosor, detallesH); // Izquierda
+                game.batch.draw(pixel, detallesX + detallesW - bordeGrosor, detallesY - detallesH, bordeGrosor, detallesH); // Derecha
+                game.batch.draw(pixel, detallesX, detallesY - detallesH - bordeGrosor, detallesW, bordeGrosor); // Abajo
+                game.batch.setColor(1, 1, 1, 1);
+
+                // Título de detalles
+                font.setColor(Color.CYAN);
+                font.getData().setScale(2.0f);
+                String detalleTitulo = "ESPECIFICACIONES";
+                com.badlogic.gdx.graphics.g2d.GlyphLayout layoutDetalle = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, detalleTitulo);
+                font.draw(game.batch, detalleTitulo, detallesX + (detallesW - layoutDetalle.width) / 2f, detallesY - 30);
+
+                // Información del Pokemon
+                float yPos = detallesY - 80;
+                font.setColor(Color.WHITE);
+                font.getData().setScale(1.8f);
+                
+                // Nombre
+                font.setColor(Color.YELLOW);
+                font.draw(game.batch, "Nombre:", detallesX + 30, yPos);
+                font.setColor(Color.WHITE);
+                font.draw(game.batch, p.getNombre(), detallesX + 200, yPos);
+                yPos -= 50;
+
+                // Tipo
+                font.setColor(Color.YELLOW);
+                font.draw(game.batch, "Tipo:", detallesX + 30, yPos);
+                font.setColor(Color.WHITE);
+                String tipoTexto = p.getTipoString(); // getTipoString() devuelve String
+                font.draw(game.batch, tipoTexto, detallesX + 200, yPos);
+                yPos -= 50;
+
+                // Sexo
+                font.setColor(Color.YELLOW);
+                font.draw(game.batch, "Sexo:", detallesX + 30, yPos);
+                font.setColor(Color.WHITE);
+                font.draw(game.batch, p.getSexo(), detallesX + 200, yPos);
+                yPos -= 50;
+
+                // Peso
+                font.setColor(Color.YELLOW);
+                font.draw(game.batch, "Peso:", detallesX + 30, yPos);
+                font.setColor(Color.WHITE);
+                font.draw(game.batch, String.format("%.2f kg", p.getPeso()), detallesX + 200, yPos);
+                yPos -= 50;
+
+                // Vida
+                font.setColor(Color.YELLOW);
+                font.draw(game.batch, "Vida (PS):", detallesX + 30, yPos);
+                font.setColor(Color.WHITE);
+                String vidaTexto = p.getVida() + " / " + p.getVidaMaxima();
+                font.draw(game.batch, vidaTexto, detallesX + 200, yPos);
+                yPos -= 50;
+
+                // Barra de vida visual
+                float barraX = detallesX + 200;
+                float barraY = yPos - 20;
+                float barraW = 300;
+                float barraH = 25;
+                
+                // Fondo de la barra
+                game.batch.setColor(0.3f, 0.3f, 0.3f, 1f);
+                game.batch.draw(pixel, barraX, barraY, barraW, barraH);
+                
+                // Barra de vida (verde/amarillo/rojo según porcentaje)
+                float porcentajeVida = (float) p.getVida() / p.getVidaMaxima();
+                if (porcentajeVida > 0.5f) {
+                    game.batch.setColor(0, 1, 0, 1f); // Verde
+                } else if (porcentajeVida > 0.25f) {
+                    game.batch.setColor(1, 1, 0, 1f); // Amarillo
+                } else {
+                    game.batch.setColor(1, 0, 0, 1f); // Rojo
+                }
+                game.batch.draw(pixel, barraX, barraY, barraW * porcentajeVida, barraH);
+                game.batch.setColor(1, 1, 1, 1);
+
+                // Borde de la barra
+                game.batch.setColor(0.8f, 0.8f, 0.8f, 1f);
+                game.batch.draw(pixel, barraX, barraY, barraW, 2); // Arriba
+                game.batch.draw(pixel, barraX, barraY, 2, barraH); // Izquierda
+                game.batch.draw(pixel, barraX + barraW - 2, barraY, 2, barraH); // Derecha
+                game.batch.draw(pixel, barraX, barraY + barraH - 2, barraW, 2); // Abajo
+                game.batch.setColor(1, 1, 1, 1);
+
+                yPos -= 60;
+
+                // Estado
+                font.setColor(Color.YELLOW);
+                font.getData().setScale(1.5f);
+                font.draw(game.batch, "Estado:", detallesX + 30, yPos);
+                font.setColor(p.estaVivo() ? Color.GREEN : Color.RED);
+                font.draw(game.batch, p.estaVivo() ? "Vivo" : "Derrotado", detallesX + 200, yPos);
+            }
+
+            // Instrucciones en la parte inferior
+            font.setColor(Color.LIGHT_GRAY);
+            font.getData().setScale(1.2f);
+            String instrucciones = "↑ ↓: Navegar | P o ESCAPE: Cerrar";
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, instrucciones);
+            font.draw(game.batch, instrucciones, (sw - layoutInst.width) / 2f, 40);
+
+            // Contador de Pokemon
+            font.setColor(Color.CYAN);
+            String contador = "Total: " + pokemons.size() + " Pokemon";
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutCont = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, contador);
+            font.draw(game.batch, contador, sw - layoutCont.width - 30, 40);
+        }
+
+        game.batch.end();
+        game.batch.setProjectionMatrix(camera.combined);
+    }
+
+    /**
+     * Gestiona la entrada del teclado cuando hay un encuentro con Pokemon.
+     */
+    private void actualizarEntradaEncuentro() {
+        if (pokemonSalvaje == null || !pokemonSalvaje.estaVivo()) {
+            // Si el Pokemon fue derrotado o no existe, cerrar encuentro
+            enEncuentro = false;
+            pokemonSalvaje = null;
+            return;
+        }
+
+        // Presionar ENTER para intentar capturar con Pokeball
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
+            try {
+                boolean capturado = sistemaCaptura.intentarCapturar(pokemonSalvaje, "Pokeball");
+                if (capturado) {
+                    enEncuentro = false;
+                    pokemonSalvaje = null;
+                }
+            } catch (ExcepcionPokebolaInsuficiente e) {
+                mostrarError(e.getMessage());
+            }
+        }
+
+        // Presionar ESPACIO para huir del encuentro
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)) {
+            System.out.println("Huyes del encuentro...");
+            enEncuentro = false;
+            pokemonSalvaje = null;
+        }
+    }
+
+    /**
+     * Dibuja la pantalla de encuentro con Pokemon salvaje.
+     */
+    private void dibujarEncuentroPokemon() {
+        if (pokemonSalvaje == null) {
+            return;
+        }
+
+        float sw = Gdx.graphics.getWidth();
+        float sh = Gdx.graphics.getHeight();
+
+        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, sw, sh);
+        game.batch.begin();
+
+        // Fondo oscuro semi-transparente
+        game.batch.setColor(0, 0, 0, 0.7f);
+        game.batch.draw(pixel, 0, 0, sw, sh);
+        game.batch.setColor(1, 1, 1, 1);
+
+        // Cuadro de información del Pokemon
+        float cuadroW = sw * 0.7f;
+        float cuadroH = sh * 0.5f;
+        float cuadroX = (sw - cuadroW) / 2f;
+        float cuadroY = (sh - cuadroH) / 2f;
+
+        // Fondo del cuadro
+        game.batch.setColor(0.2f, 0.2f, 0.2f, 0.9f);
+        game.batch.draw(pixel, cuadroX, cuadroY, cuadroW, cuadroH);
+        game.batch.setColor(1, 1, 1, 1);
+
+        // Borde del cuadro
+        game.batch.setColor(0.8f, 0.8f, 0.8f, 1f);
+        float bordeGrosor = 5f;
+        game.batch.draw(pixel, cuadroX, cuadroY, cuadroW, bordeGrosor); // Arriba
+        game.batch.draw(pixel, cuadroX, cuadroY + cuadroH - bordeGrosor, cuadroW, bordeGrosor); // Abajo
+        game.batch.draw(pixel, cuadroX, cuadroY, bordeGrosor, cuadroH); // Izquierda
+        game.batch.draw(pixel, cuadroX + cuadroW - bordeGrosor, cuadroY, bordeGrosor, cuadroH); // Derecha
+        game.batch.setColor(1, 1, 1, 1);
+
+        // Información del Pokemon
+        font.setColor(Color.WHITE);
+        font.getData().setScale(2.0f);
+        String mensaje = "¡Un " + pokemonSalvaje.getNombre() + " salvaje apareció!";
+        com.badlogic.gdx.graphics.g2d.GlyphLayout layout = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, mensaje);
+        font.draw(game.batch, mensaje, cuadroX + (cuadroW - layout.width) / 2f, cuadroY + cuadroH - 50);
+
+        font.getData().setScale(1.5f);
+        String info = pokemonSalvaje.toString();
+        font.draw(game.batch, info, cuadroX + 30, cuadroY + cuadroH - 120);
+
+        // Instrucciones
+        font.getData().setScale(1.2f);
+        font.setColor(Color.YELLOW);
+        String instrucciones = "ENTER: Capturar con Pokeball | ESPACIO: Huir";
+        com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, instrucciones);
+        font.draw(game.batch, instrucciones, cuadroX + (cuadroW - layoutInst.width) / 2f, cuadroY + 50);
+
+        // Mostrar probabilidad de captura
+        if (sistemaCaptura != null) {
+            try {
+                double probabilidad = sistemaCaptura.calcularProbabilidadCaptura(pokemonSalvaje, "Pokeball");
+                String probTexto = "Probabilidad de captura: " + String.format("%.1f%%", probabilidad * 100);
+                font.setColor(Color.CYAN);
+                font.getData().setScale(1.0f);
+                com.badlogic.gdx.graphics.g2d.GlyphLayout layoutProb = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, probTexto);
+                font.draw(game.batch, probTexto, cuadroX + (cuadroW - layoutProb.width) / 2f, cuadroY + 30);
+            } catch (Exception e) {
+                // Ignorar errores al calcular probabilidad
+            }
+        }
+
+        game.batch.end();
+        game.batch.setProjectionMatrix(camera.combined);
     }
 
     @Override
