@@ -176,6 +176,10 @@ public class Player {
         batch.draw(currentFrame, posicion.x, posicion.y, 1f, 1f);
     }
 
+    public boolean isMoviendose() {
+        return moviendose;
+    }
+
     public float getX() {
         return posicion.x;
     }

@@ -20,6 +20,7 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.maps.tiled.objects.TiledMapTileMapObject;
 import java.util.HashMap;
 import java.util.Iterator;
+import com.badlogic.gdx.utils.Array;
 
 /**
  * Pantalla principal del juego donde ocurre la accion.
@@ -27,12 +28,325 @@ import java.util.Iterator;
  * del jugador.
  */
 public class Mapa implements Screen {
+    /**
+     * Determina si una capa entera contiene objetos que se pueden recoger.
+     */
+    private boolean esCapaRecogible(MapLayer layer) {
+        if (layer == null)
+            return false;
+
+        // Buscamos propiedad "tipo" en la capa.
+        String tipoCapa = null;
+        if (layer.getProperties().containsKey("tipo")) {
+            tipoCapa = layer.getProperties().get("tipo", String.class);
+        }
+
+        if ("recogible".equalsIgnoreCase(tipoCapa))
+            return true;
+
+        // Fallback para mantener funcionando lo anterior sin cambiar el Tiled.
+        String nombre = layer.getName();
+        return nombre != null && nombre.equalsIgnoreCase("Capa de patrones 2");
+    }
+
+    /**
+     * Verifica si una posicion del mapa es solida para bloquear el paso del
+     * jugador.
+     *
+     * @param x Coordenada X en baldosas.
+     * @param y Coordenada Y en baldosas.
+     * @return true si hay colision, false si es libre.
+     */
+    public boolean esSolido(int x, int y) {
+        // En lugar de una sola capa, permitimos caminar si hay CUALQUIER baldosa de
+        // fondo (suelo)
+        // y no hay colisiones en las capas superiores.
+        boolean tieneSuelo = false;
+
+        for (MapLayer layer : mapaTiled.getLayers()) {
+            if (layer instanceof TiledMapTileLayer) {
+                TiledMapTileLayer tileLayer = (TiledMapTileLayer) layer;
+                TiledMapTileLayer.Cell cell = tileLayer.getCell(x, y);
+
+                if (cell != null && cell.getTile() != null) {
+                    tieneSuelo = true; // Si hay algo, asumimos que puede haber suelo.
+
+                    // Los objetos interactuables NO bloquean el paso.
+                    // Verificamos por propiedad de capa, propiedad de tile o si es evento.
+                    if (esCapaRecogible(layer)
+                            || esRecogible(cell.getTile())
+                            || "inicio".equalsIgnoreCase(getPropiedad(cell.getTile(), "tipo"))) {
+                        continue;
+                    }
+
+                    // Si el tile tiene formas de colisión, bloquea.
+                    if (cell.getTile().getObjects().getCount() > 0) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Si no hay ninguna baldosa en ninguna capa en esa posición, es el vacío
+        // (sólido).
+        return !tieneSuelo;
+    }
+
+    /**
+     * Verifica si el jugador está en un tile de hierba.
+     *
+     * @param x Coordenada X del jugador.
+     * @param y Coordenada Y del jugador.
+     * @return true si está en hierba, false si no.
+     */
+    public boolean estaEnHierba(float x, float y) {
+        int cellX = (int) x;
+        int cellY = (int) y;
+
+        // Recorremos todas las capas del mapa
+        for (MapLayer layer : mapaTiled.getLayers()) {
+            if (layer instanceof TiledMapTileLayer) {
+                TiledMapTileLayer tileLayer = (TiledMapTileLayer) layer;
+                TiledMapTileLayer.Cell cell = tileLayer.getCell(cellX, cellY);
+
+                if (cell != null && cell.getTile() != null) {
+                    // Verificar si el tile tiene la propiedad "hierba" o "grass"
+                    String tipo = getPropiedad(cell.getTile(), "tipo");
+                    if ("hierba".equalsIgnoreCase(tipo) || "grass".equalsIgnoreCase(tipo)) {
+                        return true;
+                    }
+
+                    // También verificar si la capa tiene la propiedad de hierba
+                    String tipoCapa = null;
+                    if (layer.getProperties().containsKey("tipo")) {
+                        tipoCapa = layer.getProperties().get("tipo", String.class);
+                    }
+                    if ("hierba".equalsIgnoreCase(tipoCapa) || "grass".equalsIgnoreCase(tipoCapa)) {
+                        return true;
+                    }
+                }
+
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Verifica si debe aparecer un Pokemon salvaje al caminar sobre hierba.
+     *
+     * @param x Coordenada X del jugador.
+     * @param y Coordenada Y del jugador.
+     */
+    public void verificarEncuentroPokemon(float x, float y) {
+        // Solo verificar si no estamos ya en un encuentro
+        if (enEncuentro) {
+            return;
+        }
+
+        // Verificar si está en hierba
+        if (estaEnHierba(x, y)) {
+            // Intentar spawn de Pokemon
+            Pokemon pokemonEncontrado = spawnPokemon.verificarEncuentro();
+            if (pokemonEncontrado != null) {
+                pokemonSalvaje = pokemonEncontrado;
+                enEncuentro = true;
+                System.out.println("¡Un " + pokemonSalvaje.getNombre() + " salvaje apareció!");
+            }
+        }
+    }
+
+    /**
+     * Detecta si el jugador esta en un portal y cambia de mapa.
+     *
+     * @param x Coordenada X del jugador.
+     * @param y Coordenada Y del jugador.
+     */
+    public void revisarPortales(float x, float y) {
+        // Buscamos la capa de portales de forma más flexible (insensible a mayúsculas).
+        MapLayer capaObjetos = null;
+        for (MapLayer layer : mapaTiled.getLayers()) {
+            if (layer.getName().equalsIgnoreCase("Portal") || layer.getName().equalsIgnoreCase("Portales")) {
+                capaObjetos = layer;
+                break;
+            }
+        }
+
+        if (capaObjetos != null) {
+            for (MapObject objeto : capaObjetos.getObjects()) {
+                if (objeto instanceof RectangleMapObject) {
+                    Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
+
+                    float rectX = rect.x * UNIT_SCALE;
+                    float rectY = rect.y * UNIT_SCALE;
+                    float rectW = rect.width * UNIT_SCALE;
+                    float rectH = rect.height * UNIT_SCALE;
+
+                    if (x >= rectX && x <= rectX + rectW && y >= rectY && y <= rectY + rectH) {
+                        String siguienteMapa = objeto.getProperties().get("Destino", String.class);
+                        if (siguienteMapa != null) {
+                            if (!siguienteMapa.endsWith(".tmx")) {
+                                siguienteMapa += ".tmx";
+                            }
+
+                            // IMPORTANTE: Reseteamos la posición del jugador para el nuevo mapa.
+                            // Podríamos guardarla en propiedades del portal si fuera necesario.
+                            jugador.getPosicion().set(10, 10);
+                            jugador.getDestino().set(10, 10);
+
+                            game.setScreen(new Mapa(game, siguienteMapa));
+                            dispose();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Bucle de renderizado principal de la pantalla.
+     *
+     * @param delta Tiempo transcurrido entre el frame actual y el anterior.
+     */
+    @Override
+    public void render(float delta) {
+
+        boolean enHierba = false;
+        for (Rectangle zona : zonasHierba) {
+            if (zona.contains(jugador.getX(), jugador.getY())) {
+                enHierba = true;
+                break;
+            }
+        }
+
+        // LÓGICA DE HIERBA
+        for (Rectangle zona : zonasHierba) {
+            if (zona.contains(jugador.getX(), jugador.getY())) {
+                enHierba = true;
+                break;
+            }
+        }
+
+        if (enHierba && jugador.isMoviendose()) {
+            grassTimer += delta;
+            if ((int)grassTimer > (int)(grassTimer - delta)) {
+                System.out.println("Segundos en hierba: " + (int)grassTimer);
+            }
+
+            if (grassTimer >= 5f) {
+                System.out.println("Inicia pelea pokemon!");
+                grassTimer = 0;
+            }
+        } else if (!enHierba) {
+            grassTimer = 0;
+        }
+
+        // Al pulsar ESCAPE alternamos la pausa.
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+            if (!inventarioAbierto && !menuCrafteoAbierto) { // Evitar abrir pausa si estamos crafteando
+                pausado = !pausado;
+            } else if (menuCrafteoAbierto) {
+                // Opcional: ESCAPE en crafteo cierra el menu (redundante con logica interna,
+                // pero seguridad)
+                menuCrafteoAbierto = false;
+            }
+        }
+
+        // Al pulsar E alternamos el inventario.
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.E)) {
+            if (!pausado && !menuPokemonAbierto) {
+                if (menuCrafteoAbierto) {
+                    menuCrafteoAbierto = false;
+                    inventarioAbierto = true; // Volver al inv
+                } else {
+                    inventarioAbierto = !inventarioAbierto;
+                }
+            }
+        }
+
+        // Al pulsar P alternamos el menú de Pokemon capturados.
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
+            if (!pausado && !inventarioAbierto && !menuCrafteoAbierto && !enEncuentro) {
+                menuPokemonAbierto = !menuPokemonAbierto;
+                if (menuPokemonAbierto) {
+                    pokemonSeleccionado = 0; // Resetear selección al abrir
+                }
+            }
+        }
+
+        if (pausado) {
+            actualizarEntradaPausa();
+        } else if (enEncuentro) {
+            actualizarEntradaEncuentro();
+        } else if (menuPokemonAbierto) {
+            actualizarEntradaPokemon();
+        } else if (menuCrafteoAbierto) {
+            actualizarEntradaCrafteo();
+        } else if (inventarioAbierto) {
+            actualizarEntradaInventario();
+        } else {
+            // Solo actualizamos al jugador si no esta pausado ni en inventario.
+            jugador.update(delta, this);
+        }
+
+        float halfWidth = camera.viewportWidth / 2f;
+        float halfHeight = camera.viewportHeight / 2f;
+
+        // Mantener la camara centrada en el jugador pero dentro de los limites del
+        // mapa.
+        float camX = MathUtils.clamp(jugador.getX() + 0.5f, halfWidth, anchoMapa - halfWidth);
+        float camY = MathUtils.clamp(jugador.getY() + 0.5f, halfHeight, altoMapa - halfHeight);
+
+        camera.position.set(camX, camY, 0);
+        camera.update();
+
+        // Limpiar la pantalla.
+        Gdx.gl.glClearColor(0, 0, 0, 1);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+        // Renderizar mapa.
+        renderer.setView(camera);
+        renderer.render();
+
+        // Renderizar jugador.
+        game.batch.setProjectionMatrix(camera.combined);
+        game.batch.begin();
+        jugador.draw(game.batch);
+        game.batch.end();
+
+        // DIBUJAR OVERLAY DE PAUSA
+        if (pausado) {
+            dibujarMenuPausa();
+        } else if (enEncuentro) {
+            dibujarEncuentroPokemon();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
+        } else if (menuPokemonAbierto) {
+            dibujarMenuPokemon();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
+        } else if (menuPokemonAbierto) {
+            dibujarMenuPokemon();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
+        } else if (menuCrafteoAbierto) {
+            dibujarMenuCrafteo();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
+        } else if (inventarioAbierto) {
+            dibujarInventario();
+            if (mostrandoError)
+                dibujarCuadroError(delta);
+        } else {
+            if (mostrandoError)
+                dibujarCuadroError(delta); // Mostrar error en juego normal (ej: pickup)
+        }
+    }
     private Main game;
     private TiledMap mapaTiled;
     private OrthogonalTiledMapRenderer renderer;
     private OrthographicCamera camera;
-    private Player jugador;
 
+    private Player jugador;
     // --- ESTADO DE PAUSA ---
     private boolean pausado = false;
     private boolean inventarioAbierto = false;
@@ -50,28 +364,32 @@ public class Mapa implements Screen {
     private Texture texCraftear, texCraftearC;
     private Texture marcoPlastico, marcoGoma, marcoMadera, marcoSlot, marcoSlotC;
     private Texture texPokeCura, texPokeExp, texPokeball;
-    private BitmapFont font;
 
+    private BitmapFont font;
     // --- ESTADO ERROR UI ---
     private boolean mostrandoError = false;
     private String mensajeError = "";
-    private float tiempoMensajeError = 0;
 
+    private float tiempoMensajeError = 0;
     // --- ESTADO ENCUENTRO POKEMON ---
     private SpawnPokemon spawnPokemon;
     private Pokemon pokemonSalvaje;
     private boolean enEncuentro = false;
-    private CapturaPokemon sistemaCaptura;
 
+    private CapturaPokemon sistemaCaptura;
     private static final int OPCION_REANUDAR = 0;
     private static final int OPCION_SALIR_MENU = 1;
+
     private static final int CANTIDAD_OPCIONES = 2;
 
     private static final int INV_CRAFTEAR = 0;
-
     private float anchoMapa, altoMapa;
     // Escala unitaria: 1 unidad de mundo = 16 pixeles (tamaño de un tile).
+
     private static final float UNIT_SCALE = 1 / 16f;
+    private float grassTimer = 0;
+
+    private Array<Rectangle> zonasHierba = new Array<>();
 
     /**
      * Constructor del Mapa.
@@ -82,23 +400,36 @@ public class Mapa implements Screen {
     public Mapa(Main game, String nombreArchivo) {
         this.game = game;
 
-        // Cargamos el mapa de Tiled usando la ruta del archivo.
+        // 1. CARGAMOS EL MAPA PRIMERO (Fundamental para que no sea null)
         mapaTiled = new TmxMapLoader().load(nombreArchivo);
         renderer = new OrthogonalTiledMapRenderer(mapaTiled, UNIT_SCALE, game.batch);
 
-        // Obtenemos las dimensiones del mapa en numero de baldosas.
+        // 2. AHORA BUSCAMOS LA HIERBA (Ya que el mapa existe)
+        MapLayer capaLogica = mapaTiled.getLayers().get("LogicaHierba");
+        if (capaLogica != null) {
+            for (MapObject objeto : capaLogica.getObjects()) {
+                if (objeto instanceof RectangleMapObject) {
+                    Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
+                    Rectangle rectEscalado = new Rectangle(
+                            rect.x * UNIT_SCALE,
+                            rect.y * UNIT_SCALE,
+                            rect.width * UNIT_SCALE,
+                            rect.height * UNIT_SCALE
+                    );
+                    zonasHierba.add(rectEscalado);
+                }
+            }
+        }
+
+        // 3. RESTO DE INICIALIZACIONES
         anchoMapa = mapaTiled.getProperties().get("width", Integer.class);
         altoMapa = mapaTiled.getProperties().get("height", Integer.class);
-
         camera = new OrthographicCamera();
-        // Inicializamos al jugador desde Main para persistencia.
         this.jugador = game.getJugador();
-
-        // Inicializar sistema de spawn y captura de Pokemon
         this.spawnPokemon = new SpawnPokemon();
         this.sistemaCaptura = new CapturaPokemon(jugador.getInventario());
 
-        // Carga de texturas para el menu de pausa.
+        // Carga de texturas (lo que ya tenías)
         pausaSalir = new Texture(Gdx.files.internal("Salir.png"));
         pausaSalirC = new Texture(Gdx.files.internal("SalirC.png"));
         pausaVolver = new Texture(Gdx.files.internal("Boton de Continuar base.png"));
@@ -108,17 +439,14 @@ public class Mapa implements Screen {
         pausaPokepausa = new Texture(Gdx.files.internal("Pokepausa.png"));
         marcoInventario = new Texture(Gdx.files.internal("MarcoInventario.png"));
 
-        // Inicializar fuente y textura de pixel blanco para dibujo manual.
         font = new BitmapFont();
         font.getData().setScale(1.5f);
-
         Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pixmap.setColor(Color.WHITE);
         pixmap.fill();
         pixel = new Texture(pixmap);
         pixmap.dispose();
 
-        // Carga de nuevas texturas de inventario.
         texCraftear = new Texture(Gdx.files.internal("Boton de Craftear base.png"));
         texCraftearC = new Texture(Gdx.files.internal("Boton de Craftear.jpeg"));
         marcoPlastico = new Texture(Gdx.files.internal("Marco 8bit Plastico.png"));
@@ -126,18 +454,11 @@ public class Mapa implements Screen {
         marcoMadera = new Texture(Gdx.files.internal("Marco 8bit Madera.png"));
         marcoSlot = new Texture(Gdx.files.internal("Marco 8bit.png"));
         marcoSlotC = new Texture(Gdx.files.internal("Marco 8bit a color.png"));
-
-        // Carga de texturas de items individuales
         texPokeCura = new Texture(Gdx.files.internal("PokeCura.png"));
         texPokeExp = new Texture(Gdx.files.internal("PokeExp.png"));
         texPokeball = new Texture(Gdx.files.internal("Pokeball.png"));
-
-        // Carga del marco amarillo para crafteo
         marcoCrafteoSeleccionado = new Texture(Gdx.files.internal("MarcoInventariobase.png"));
-        // Carga del marco azul para crafteo no seleccionado
         marcoCrafteoNoSeleccionado = new Texture(Gdx.files.internal("MarcoInventario2.png"));
-
-        // Configurar filtro de fuente para estilo retro/pixelado
         font.getRegion().getTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
     }
 
@@ -265,7 +586,7 @@ public class Mapa implements Screen {
 
     /**
      * Determina si un tile dado es una pokebola segun su origen o sus propiedades.
-     * 
+     *
      * @param tile El tile a verificar.
      * @return true si es una pokebola.
      */
@@ -313,288 +634,6 @@ public class Mapa implements Screen {
             }
         }
         return null;
-    }
-
-    /**
-     * Determina si una capa entera contiene objetos que se pueden recoger.
-     */
-    private boolean esCapaRecogible(MapLayer layer) {
-        if (layer == null)
-            return false;
-
-        // Buscamos propiedad "tipo" en la capa.
-        String tipoCapa = null;
-        if (layer.getProperties().containsKey("tipo")) {
-            tipoCapa = layer.getProperties().get("tipo", String.class);
-        }
-
-        if ("recogible".equalsIgnoreCase(tipoCapa))
-            return true;
-
-        // Fallback para mantener funcionando lo anterior sin cambiar el Tiled.
-        String nombre = layer.getName();
-        return nombre != null && nombre.equalsIgnoreCase("Capa de patrones 2");
-    }
-
-    /**
-     * Verifica si una posicion del mapa es solida para bloquear el paso del
-     * jugador.
-     *
-     * @param x Coordenada X en baldosas.
-     * @param y Coordenada Y en baldosas.
-     * @return true si hay colision, false si es libre.
-     */
-    public boolean esSolido(int x, int y) {
-        // En lugar de una sola capa, permitimos caminar si hay CUALQUIER baldosa de
-        // fondo (suelo)
-        // y no hay colisiones en las capas superiores.
-        boolean tieneSuelo = false;
-
-        for (MapLayer layer : mapaTiled.getLayers()) {
-            if (layer instanceof TiledMapTileLayer) {
-                TiledMapTileLayer tileLayer = (TiledMapTileLayer) layer;
-                TiledMapTileLayer.Cell cell = tileLayer.getCell(x, y);
-
-                if (cell != null && cell.getTile() != null) {
-                    tieneSuelo = true; // Si hay algo, asumimos que puede haber suelo.
-
-                    // Los objetos interactuables NO bloquean el paso.
-                    // Verificamos por propiedad de capa, propiedad de tile o si es evento.
-                    if (esCapaRecogible(layer)
-                            || esRecogible(cell.getTile())
-                            || "inicio".equalsIgnoreCase(getPropiedad(cell.getTile(), "tipo"))) {
-                        continue;
-                    }
-
-                    // Si el tile tiene formas de colisión, bloquea.
-                    if (cell.getTile().getObjects().getCount() > 0) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        // Si no hay ninguna baldosa en ninguna capa en esa posición, es el vacío
-        // (sólido).
-        return !tieneSuelo;
-    }
-
-    /**
-     * Verifica si el jugador está en un tile de hierba.
-     * 
-     * @param x Coordenada X del jugador.
-     * @param y Coordenada Y del jugador.
-     * @return true si está en hierba, false si no.
-     */
-    public boolean estaEnHierba(float x, float y) {
-        int cellX = (int) x;
-        int cellY = (int) y;
-
-        // Recorremos todas las capas del mapa
-        for (MapLayer layer : mapaTiled.getLayers()) {
-            if (layer instanceof TiledMapTileLayer) {
-                TiledMapTileLayer tileLayer = (TiledMapTileLayer) layer;
-                TiledMapTileLayer.Cell cell = tileLayer.getCell(cellX, cellY);
-
-                if (cell != null && cell.getTile() != null) {
-                    // Verificar si el tile tiene la propiedad "hierba" o "grass"
-                    String tipo = getPropiedad(cell.getTile(), "tipo");
-                    if ("hierba".equalsIgnoreCase(tipo) || "grass".equalsIgnoreCase(tipo)) {
-                        return true;
-                    }
-
-                    // También verificar si la capa tiene la propiedad de hierba
-                    String tipoCapa = null;
-                    if (layer.getProperties().containsKey("tipo")) {
-                        tipoCapa = layer.getProperties().get("tipo", String.class);
-                    }
-                    if ("hierba".equalsIgnoreCase(tipoCapa) || "grass".equalsIgnoreCase(tipoCapa)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Verifica si debe aparecer un Pokemon salvaje al caminar sobre hierba.
-     * 
-     * @param x Coordenada X del jugador.
-     * @param y Coordenada Y del jugador.
-     */
-    public void verificarEncuentroPokemon(float x, float y) {
-        // Solo verificar si no estamos ya en un encuentro
-        if (enEncuentro) {
-            return;
-        }
-
-        // Verificar si está en hierba
-        if (estaEnHierba(x, y)) {
-            // Intentar spawn de Pokemon
-            Pokemon pokemonEncontrado = spawnPokemon.verificarEncuentro();
-            if (pokemonEncontrado != null) {
-                pokemonSalvaje = pokemonEncontrado;
-                enEncuentro = true;
-                System.out.println("¡Un " + pokemonSalvaje.getNombre() + " salvaje apareció!");
-            }
-        }
-    }
-
-    /**
-     * Detecta si el jugador esta en un portal y cambia de mapa.
-     * 
-     * @param x Coordenada X del jugador.
-     * @param y Coordenada Y del jugador.
-     */
-    public void revisarPortales(float x, float y) {
-        // Buscamos la capa de portales de forma más flexible (insensible a mayúsculas).
-        MapLayer capaObjetos = null;
-        for (MapLayer layer : mapaTiled.getLayers()) {
-            if (layer.getName().equalsIgnoreCase("Portal") || layer.getName().equalsIgnoreCase("Portales")) {
-                capaObjetos = layer;
-                break;
-            }
-        }
-
-        if (capaObjetos != null) {
-            for (MapObject objeto : capaObjetos.getObjects()) {
-                if (objeto instanceof RectangleMapObject) {
-                    Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
-
-                    float rectX = rect.x * UNIT_SCALE;
-                    float rectY = rect.y * UNIT_SCALE;
-                    float rectW = rect.width * UNIT_SCALE;
-                    float rectH = rect.height * UNIT_SCALE;
-
-                    if (x >= rectX && x <= rectX + rectW && y >= rectY && y <= rectY + rectH) {
-                        String siguienteMapa = objeto.getProperties().get("Destino", String.class);
-                        if (siguienteMapa != null) {
-                            if (!siguienteMapa.endsWith(".tmx")) {
-                                siguienteMapa += ".tmx";
-                            }
-
-                            // IMPORTANTE: Reseteamos la posición del jugador para el nuevo mapa.
-                            // Podríamos guardarla en propiedades del portal si fuera necesario.
-                            jugador.getPosicion().set(10, 10);
-                            jugador.getDestino().set(10, 10);
-
-                            game.setScreen(new Mapa(game, siguienteMapa));
-                            dispose();
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Bucle de renderizado principal de la pantalla.
-     *
-     * @param delta Tiempo transcurrido entre el frame actual y el anterior.
-     */
-    @Override
-    public void render(float delta) {
-        // Al pulsar ESCAPE alternamos la pausa.
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
-            if (!inventarioAbierto && !menuCrafteoAbierto) { // Evitar abrir pausa si estamos crafteando
-                pausado = !pausado;
-            } else if (menuCrafteoAbierto) {
-                // Opcional: ESCAPE en crafteo cierra el menu (redundante con logica interna,
-                // pero seguridad)
-                menuCrafteoAbierto = false;
-            }
-        }
-
-        // Al pulsar E alternamos el inventario.
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.E)) {
-            if (!pausado && !menuPokemonAbierto) {
-                if (menuCrafteoAbierto) {
-                    menuCrafteoAbierto = false;
-                    inventarioAbierto = true; // Volver al inv
-                } else {
-                    inventarioAbierto = !inventarioAbierto;
-                }
-            }
-        }
-
-        // Al pulsar P alternamos el menú de Pokemon capturados.
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
-            if (!pausado && !inventarioAbierto && !menuCrafteoAbierto && !enEncuentro) {
-                menuPokemonAbierto = !menuPokemonAbierto;
-                if (menuPokemonAbierto) {
-                    pokemonSeleccionado = 0; // Resetear selección al abrir
-                }
-            }
-        }
-
-        if (pausado) {
-            actualizarEntradaPausa();
-        } else if (enEncuentro) {
-            actualizarEntradaEncuentro();
-        } else if (menuPokemonAbierto) {
-            actualizarEntradaPokemon();
-        } else if (menuCrafteoAbierto) {
-            actualizarEntradaCrafteo();
-        } else if (inventarioAbierto) {
-            actualizarEntradaInventario();
-        } else {
-            // Solo actualizamos al jugador si no esta pausado ni en inventario.
-            jugador.update(delta, this);
-        }
-
-        float halfWidth = camera.viewportWidth / 2f;
-        float halfHeight = camera.viewportHeight / 2f;
-
-        // Mantener la camara centrada en el jugador pero dentro de los limites del
-        // mapa.
-        float camX = MathUtils.clamp(jugador.getX() + 0.5f, halfWidth, anchoMapa - halfWidth);
-        float camY = MathUtils.clamp(jugador.getY() + 0.5f, halfHeight, altoMapa - halfHeight);
-
-        camera.position.set(camX, camY, 0);
-        camera.update();
-
-        // Limpiar la pantalla.
-        Gdx.gl.glClearColor(0, 0, 0, 1);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
-        // Renderizar mapa.
-        renderer.setView(camera);
-        renderer.render();
-
-        // Renderizar jugador.
-        game.batch.setProjectionMatrix(camera.combined);
-        game.batch.begin();
-        jugador.draw(game.batch);
-        game.batch.end();
-
-        // DIBUJAR OVERLAY DE PAUSA
-        if (pausado) {
-            dibujarMenuPausa();
-        } else if (enEncuentro) {
-            dibujarEncuentroPokemon();
-            if (mostrandoError)
-                dibujarCuadroError(delta);
-        } else if (menuPokemonAbierto) {
-            dibujarMenuPokemon();
-            if (mostrandoError)
-                dibujarCuadroError(delta);
-        } else if (menuPokemonAbierto) {
-            dibujarMenuPokemon();
-            if (mostrandoError)
-                dibujarCuadroError(delta);
-        } else if (menuCrafteoAbierto) {
-            dibujarMenuCrafteo();
-            if (mostrandoError)
-                dibujarCuadroError(delta);
-        } else if (inventarioAbierto) {
-            dibujarInventario();
-            if (mostrandoError)
-                dibujarCuadroError(delta);
-        } else {
-            if (mostrandoError)
-                dibujarCuadroError(delta); // Mostrar error en juego normal (ej: pickup)
-        }
     }
 
     /**

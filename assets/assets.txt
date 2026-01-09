@@ -27,8 +27,6 @@ Pokepausa.png
 Salir.png
 SalirC.png
 TexturasVerde.tsx
-TileSets (copia)/PokebolasTiled.png
-TileSets (copia)/TilesetPokemon.png
 TileSets/PokebolasTiled.png
 TileSets/TilesetPokemon.png
 arceus.jpg
