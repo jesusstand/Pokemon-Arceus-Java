@@ -119,9 +119,16 @@ public class Player {
 
         // Accion al pulsar la tecla ENTER.
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
-            // Solo interactuamos con la posicion actual (pisando el objeto), como solicito
-            // el usuario.
-            mapa.interactuar(destino.x, destino.y);
+            // Interactuamos con la casilla FRENTE al jugador
+            float interactX = destino.x + direccionMirada.x;
+            float interactY = destino.y + direccionMirada.y;
+
+            // Intenta interactuar enfrente. Si devuelve true, hubo accion.
+            if (!mapa.interactuar(interactX, interactY)) {
+                // Si no hubo nada enfrente, intentamos en la misma casilla (para items
+                // pisables)
+                mapa.interactuar(destino.x, destino.y);
+            }
         }
     }
 

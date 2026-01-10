@@ -5,6 +5,7 @@ import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.Color;
@@ -89,7 +90,22 @@ public class Mapa implements Screen {
 
         // Si no hay ninguna baldosa en ninguna capa en esa posición, es el vacío
         // (sólido).
-        return !tieneSuelo;
+        if (!tieneSuelo)
+            return true;
+
+        // Verificar colision con NPCs
+        if (npcs != null) {
+            for (NPC npc : npcs) {
+                if (npc.isSolido()) {
+                    // Si el NPC esta en la coordenada x, y
+                    if ((int) npc.getPosicion().x == x && (int) npc.getPosicion().y == y) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -228,8 +244,8 @@ public class Mapa implements Screen {
 
         if (enHierba && jugador.isMoviendose()) {
             grassTimer += delta;
-            if ((int)grassTimer > (int)(grassTimer - delta)) {
-                System.out.println("Segundos en hierba: " + (int)grassTimer);
+            if ((int) grassTimer > (int) (grassTimer - delta)) {
+                System.out.println("Segundos en hierba: " + (int) grassTimer);
             }
 
             if (grassTimer >= 5f) {
@@ -311,6 +327,14 @@ public class Mapa implements Screen {
         game.batch.setProjectionMatrix(camera.combined);
         game.batch.begin();
         jugador.draw(game.batch);
+
+        // Renderizar NPCs
+        if (npcs != null) {
+            for (NPC npc : npcs) {
+                npc.render(game.batch);
+            }
+        }
+
         game.batch.end();
 
         // DIBUJAR OVERLAY DE PAUSA
@@ -341,6 +365,7 @@ public class Mapa implements Screen {
                 dibujarCuadroError(delta); // Mostrar error en juego normal (ej: pickup)
         }
     }
+
     private Main game;
     private TiledMap mapaTiled;
     private OrthogonalTiledMapRenderer renderer;
@@ -414,8 +439,7 @@ public class Mapa implements Screen {
                             rect.x * UNIT_SCALE,
                             rect.y * UNIT_SCALE,
                             rect.width * UNIT_SCALE,
-                            rect.height * UNIT_SCALE
-                    );
+                            rect.height * UNIT_SCALE);
                     zonasHierba.add(rectEscalado);
                 }
             }
@@ -460,7 +484,130 @@ public class Mapa implements Screen {
         marcoCrafteoSeleccionado = new Texture(Gdx.files.internal("MarcoInventariobase.png"));
         marcoCrafteoNoSeleccionado = new Texture(Gdx.files.internal("MarcoInventario2.png"));
         font.getRegion().getTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+
+        // Cargar NPC texture (usamos player_sprite temporalmente si no hay otro, o un
+        // region especifico)
+        // Para este ejemplo, tomaremos una region del player_sprite para el NPC
+        Texture playerTex = new Texture(Gdx.files.internal("player_sprite.png"));
+        TextureRegion npcRegion = new TextureRegion(playerTex, 0, 0, playerTex.getWidth() / 4,
+                playerTex.getHeight() / 4);
+
+        // 4. CARGAR NPCS DESDE TILED Y ELIMINARLOS DEL MAPA (para que no sean items)
+        npcs = new java.util.ArrayList<>();
+
+        for (MapLayer layer : mapaTiled.getLayers()) {
+            // Solo nos interesan las capas de objetos
+            if (layer.getObjects().getCount() > 0) {
+                // Usamos iterador para poder borrar el objeto de la capa una vez convertido a
+                // NPC
+                Iterator<MapObject> iter = layer.getObjects().iterator();
+                while (iter.hasNext()) {
+                    MapObject obj = iter.next();
+
+                    // CRITERIO PARA SER NPC:
+                    // 1. La capa tiene "NPC" en el nombre
+                    // 2. O el objeto tiene la propiedad "NPC"
+                    boolean esCapaNPC = layer.getName().toUpperCase().contains("NPC");
+                    boolean tienePropiedadNPC = obj.getProperties().containsKey("NPC");
+
+                    if (!esCapaNPC && !tienePropiedadNPC) {
+                        continue; // No es un NPC, seguimos
+                    }
+
+                    float x = 0;
+                    float y = 0;
+                    TextureRegion regionToUse = npcRegion; // Default fallback
+                    boolean esValido = false;
+
+                    if (obj instanceof RectangleMapObject) {
+                        Rectangle rect = ((RectangleMapObject) obj).getRectangle();
+                        x = rect.x * UNIT_SCALE;
+                        y = rect.y * UNIT_SCALE;
+                        esValido = true;
+                    } else if (obj instanceof TiledMapTileMapObject) {
+                        TiledMapTileMapObject tileObj = (TiledMapTileMapObject) obj;
+                        x = tileObj.getX() * UNIT_SCALE;
+                        y = tileObj.getY() * UNIT_SCALE;
+
+                        // SI TIENE TILE (GRÁFICO) EN TILED, USAMOS ESE
+                        if (tileObj.getTile() != null) {
+                            regionToUse = tileObj.getTile().getTextureRegion();
+                        }
+                        esValido = true;
+                    }
+
+                    if (esValido) {
+                        // Leer mensaje custom del objeto Tiled (si existe)
+                        String msg = "Hola viajero!";
+                        if (obj.getProperties().containsKey("mensaje")) {
+                            msg = obj.getProperties().get("mensaje", String.class);
+                        }
+
+                        // Leer tipo de NPC (Ej: "Enemigos")
+                        String tipoNPC = "";
+                        if (obj.getProperties().containsKey("NPC")) {
+                            tipoNPC = obj.getProperties().get("NPC", String.class);
+                        }
+                        // Default si la capa es NPC pero no tiene prop NPC
+                        if (tipoNPC.isEmpty() && esCapaNPC)
+                            tipoNPC = "Civil";
+
+                        // Leer Color del objeto en Tiled
+                        Color objColor = null;
+                        if (obj.getColor() != null) {
+                            objColor = obj.getColor();
+                        }
+
+                        // SNAP TO GRID
+                        float snapX = Math.round(x);
+                        float snapY = Math.round(y);
+
+                        NPC nuevoNpc = new NPC(snapX, snapY, regionToUse, msg, objColor, tipoNPC);
+                        npcs.add(nuevoNpc);
+                        System.out.println("NPC Cagado: " + tipoNPC + " en " + snapX + "," + snapY);
+
+                        // EL USUARIO PIDIO NO ELIMINARLOS DEL MAPA. OK.
+                        // iter.remove();
+                    }
+                }
+            }
+
+            // TAMBIEN BUSCAMOS EN CAPAS DE TILES (por si el usuario pinto el NPC como un
+            // tile normal)
+            if (layer instanceof TiledMapTileLayer) {
+                TiledMapTileLayer tileLayer = (TiledMapTileLayer) layer;
+                for (int x = 0; x < tileLayer.getWidth(); x++) {
+                    for (int y = 0; y < tileLayer.getHeight(); y++) {
+                        TiledMapTileLayer.Cell cell = tileLayer.getCell(x, y);
+                        if (cell != null && cell.getTile() != null) {
+                            // Check properties
+                            String propNPC = getPropiedad(cell.getTile(), "NPC");
+                            boolean isNPC = propNPC != null;
+
+                            if (isNPC) {
+                                // Es un NPC pintado. Lo convertimos a objeto NPC.
+                                TextureRegion reg = cell.getTile().getTextureRegion();
+                                String msg = "Hola!";
+                                if (getPropiedad(cell.getTile(), "mensaje") != null)
+                                    msg = getPropiedad(cell.getTile(), "mensaje");
+
+                                String tipo = propNPC; // El valor de la propiedad NPC es el tipo (Enemigo)
+
+                                NPC n = new NPC(x, y, reg, msg, null, tipo);
+                                npcs.add(n);
+                                System.out.println("NPC (Tile) Cargado: " + tipo + " en " + x + "," + y);
+
+                                // Aqui SI borramos el tile para que no se duplique grafico y logica
+                                tileLayer.setCell(x, y, null);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    private java.util.List<NPC> npcs;
 
     /**
      * Gestiona la interaccion del jugador con el mundo.
@@ -472,6 +619,18 @@ public class Mapa implements Screen {
     public boolean interactuar(float x, float y) {
         int cellX = (int) x;
         int cellY = (int) y;
+
+        // --- CASO 0: INTERACCION CON NPC ---
+        if (npcs != null) {
+            for (NPC npc : npcs) {
+                // Chequear si la posicion de interaccion (x, y) esta cerca del NPC
+                // Usamos una tolerancia pequeña (0.5f) ya que x,y son enteras a veces
+                if (npc.getPosicion().dst(x, y) < 1.0f) {
+                    npc.interactuar();
+                    return true;
+                }
+            }
+        }
 
         // Recorremos todas las capas del mapa.
         for (MapLayer layer : mapaTiled.getLayers()) {
@@ -541,6 +700,14 @@ public class Mapa implements Screen {
                             return true;
                         }
 
+                        // CRITICO: Si es un NPC (tiene propiedad NPC o tipo NPC), NO LO RECOJAS.
+                        if (tileObj.getProperties().containsKey("NPC") || "NPC".equalsIgnoreCase(tipo)) {
+                            // Es un NPC, lo ignoramos aqui porque ya se debio manejar en el bucle de "CASO
+                            // 0" al inicio del metodo.
+                            // Retornamos true para decir "aqui hay algo", pero no lo recogemos.
+                            return true;
+                        }
+
                         if (esRecogible(tileObj.getTile())) {
                             layer.getObjects().remove(obj);
                             System.out.println("Objeto recogido de la capa de objetos: " + layer.getName());
@@ -596,14 +763,13 @@ public class Mapa implements Screen {
 
         String tipo = getPropiedad(tile, "tipo");
 
+        // SEGURIDAD: SI ES NPC, JAMAS ES RECOGIBLE
+        if (getPropiedad(tile, "NPC") != null || "NPC".equalsIgnoreCase(tipo))
+            return false;
+
         // Un objeto de "inicio" no es recogible (es un evento).
         if ("inicio".equalsIgnoreCase(tipo))
             return false;
-
-        // Si tiene la propiedad explícita de "recogible" o tiene Tipo/Item.
-        if ("recogible".equalsIgnoreCase(tipo) || getPropiedad(tile, "Tipo") != null
-                || getPropiedad(tile, "Item") != null)
-            return true;
 
         // Comprobación por nombre del conjunto de patrones (tileset).
         // Si el tileset tiene "pokebola" o "pokeball" en el nombre, lo tratamos como
@@ -612,7 +778,9 @@ public class Mapa implements Screen {
             String name = tileset.getName();
             if (name != null && (name.toLowerCase().contains("pokebola") || name.toLowerCase().contains("pokeball"))) {
                 for (com.badlogic.gdx.maps.tiled.TiledMapTile t : tileset) {
-                    if (t == tile)
+                    // EXCEPCION: SI TIENE PROPIEDAD NPC, NO ES RECOGIBLE AUNQUE ESTE EN TILESET
+                    // POKEBOLA
+                    if (t == tile && getPropiedad(t, "NPC") == null)
                         return true;
                 }
             }
@@ -627,6 +795,9 @@ public class Mapa implements Screen {
     private String getPropiedad(com.badlogic.gdx.maps.tiled.TiledMapTile tile, String key) {
         if (tile == null || tile.getProperties() == null)
             return null;
+        if (tile.getProperties().containsKey(key))
+            return tile.getProperties().get(key).toString(); // Direct check
+
         for (Iterator<String> it = tile.getProperties().getKeys(); it.hasNext();) {
             String k = it.next();
             if (k.equalsIgnoreCase(key)) {
@@ -859,11 +1030,11 @@ public class Mapa implements Screen {
      */
     private void actualizarEntradaPokemon() {
         java.util.List<Pokemon> pokemons = sistemaCaptura.getPokemonsCapturados();
-        
+
         if (pokemons.isEmpty()) {
             // Si no hay Pokemon, cerrar el menú con cualquier tecla
-            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE) || 
-                Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE) ||
+                    Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
                 menuPokemonAbierto = false;
             }
             return;
@@ -878,8 +1049,8 @@ public class Mapa implements Screen {
         }
 
         // Cerrar con ESCAPE o P
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE) || 
-            Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE) ||
+                Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
             menuPokemonAbierto = false;
         }
     }
@@ -905,7 +1076,8 @@ public class Mapa implements Screen {
         font.setColor(Color.YELLOW);
         font.getData().setScale(2.5f);
         String titulo = "POKEMON CAPTURADOS";
-        com.badlogic.gdx.graphics.g2d.GlyphLayout layoutTitulo = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, titulo);
+        com.badlogic.gdx.graphics.g2d.GlyphLayout layoutTitulo = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
+                titulo);
         font.draw(game.batch, titulo, (sw - layoutTitulo.width) / 2f, sh - 50);
 
         if (pokemons.isEmpty()) {
@@ -913,12 +1085,14 @@ public class Mapa implements Screen {
             font.setColor(Color.WHITE);
             font.getData().setScale(2.0f);
             String mensaje = "No has capturado ningún Pokemon aún";
-            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutMensaje = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, mensaje);
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutMensaje = new com.badlogic.gdx.graphics.g2d.GlyphLayout(
+                    font, mensaje);
             font.draw(game.batch, mensaje, (sw - layoutMensaje.width) / 2f, sh / 2f);
 
             font.getData().setScale(1.5f);
             String instruccion = "Presiona P o ESCAPE para cerrar";
-            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, instruccion);
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
+                    instruccion);
             font.draw(game.batch, instruccion, (sw - layoutInst.width) / 2f, sh / 2f - 60);
         } else {
             // Área de lista de Pokemon (izquierda)
@@ -928,7 +1102,7 @@ public class Mapa implements Screen {
             float listaH = sh - 200;
             float itemHeight = 60f;
             int itemsVisibles = (int) (listaH / itemHeight);
-            
+
             // Fondo de la lista
             game.batch.setColor(0.15f, 0.15f, 0.15f, 0.9f);
             game.batch.draw(pixel, listaX, listaY - listaH, listaW, listaH);
@@ -945,14 +1119,14 @@ public class Mapa implements Screen {
 
             // Dibujar lista de Pokemon
             font.getData().setScale(1.3f);
-            int startIndex = Math.max(0, Math.min(pokemonSeleccionado - itemsVisibles / 2, 
-                Math.max(0, pokemons.size() - itemsVisibles)));
-            
+            int startIndex = Math.max(0, Math.min(pokemonSeleccionado - itemsVisibles / 2,
+                    Math.max(0, pokemons.size() - itemsVisibles)));
+
             for (int i = 0; i < itemsVisibles && (startIndex + i) < pokemons.size(); i++) {
                 int index = startIndex + i;
                 Pokemon p = pokemons.get(index);
                 float itemY = listaY - (i * itemHeight) - 30;
-                
+
                 // Resaltar el seleccionado
                 if (index == pokemonSeleccionado) {
                     game.batch.setColor(0.3f, 0.5f, 0.8f, 0.7f);
@@ -983,7 +1157,8 @@ public class Mapa implements Screen {
                 game.batch.setColor(0.8f, 0.8f, 0.8f, 1f);
                 game.batch.draw(pixel, detallesX, detallesY, detallesW, bordeGrosor); // Arriba
                 game.batch.draw(pixel, detallesX, detallesY - detallesH, bordeGrosor, detallesH); // Izquierda
-                game.batch.draw(pixel, detallesX + detallesW - bordeGrosor, detallesY - detallesH, bordeGrosor, detallesH); // Derecha
+                game.batch.draw(pixel, detallesX + detallesW - bordeGrosor, detallesY - detallesH, bordeGrosor,
+                        detallesH); // Derecha
                 game.batch.draw(pixel, detallesX, detallesY - detallesH - bordeGrosor, detallesW, bordeGrosor); // Abajo
                 game.batch.setColor(1, 1, 1, 1);
 
@@ -991,14 +1166,16 @@ public class Mapa implements Screen {
                 font.setColor(Color.CYAN);
                 font.getData().setScale(2.0f);
                 String detalleTitulo = "ESPECIFICACIONES";
-                com.badlogic.gdx.graphics.g2d.GlyphLayout layoutDetalle = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, detalleTitulo);
-                font.draw(game.batch, detalleTitulo, detallesX + (detallesW - layoutDetalle.width) / 2f, detallesY - 30);
+                com.badlogic.gdx.graphics.g2d.GlyphLayout layoutDetalle = new com.badlogic.gdx.graphics.g2d.GlyphLayout(
+                        font, detalleTitulo);
+                font.draw(game.batch, detalleTitulo, detallesX + (detallesW - layoutDetalle.width) / 2f,
+                        detallesY - 30);
 
                 // Información del Pokemon
                 float yPos = detallesY - 80;
                 font.setColor(Color.WHITE);
                 font.getData().setScale(1.8f);
-                
+
                 // Nombre
                 font.setColor(Color.YELLOW);
                 font.draw(game.batch, "Nombre:", detallesX + 30, yPos);
@@ -1041,11 +1218,11 @@ public class Mapa implements Screen {
                 float barraY = yPos - 20;
                 float barraW = 300;
                 float barraH = 25;
-                
+
                 // Fondo de la barra
                 game.batch.setColor(0.3f, 0.3f, 0.3f, 1f);
                 game.batch.draw(pixel, barraX, barraY, barraW, barraH);
-                
+
                 // Barra de vida (verde/amarillo/rojo según porcentaje)
                 float porcentajeVida = (float) p.getVida() / p.getVidaMaxima();
                 if (porcentajeVida > 0.5f) {
@@ -1080,13 +1257,15 @@ public class Mapa implements Screen {
             font.setColor(Color.LIGHT_GRAY);
             font.getData().setScale(1.2f);
             String instrucciones = "↑ ↓: Navegar | P o ESCAPE: Cerrar";
-            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, instrucciones);
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
+                    instrucciones);
             font.draw(game.batch, instrucciones, (sw - layoutInst.width) / 2f, 40);
 
             // Contador de Pokemon
             font.setColor(Color.CYAN);
             String contador = "Total: " + pokemons.size() + " Pokemon";
-            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutCont = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, contador);
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutCont = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
+                    contador);
             font.draw(game.batch, contador, sw - layoutCont.width - 30, 40);
         }
 
@@ -1180,7 +1359,8 @@ public class Mapa implements Screen {
         font.getData().setScale(1.2f);
         font.setColor(Color.YELLOW);
         String instrucciones = "ENTER: Capturar con Pokeball | ESPACIO: Huir";
-        com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, instrucciones);
+        com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
+                instrucciones);
         font.draw(game.batch, instrucciones, cuadroX + (cuadroW - layoutInst.width) / 2f, cuadroY + 50);
 
         // Mostrar probabilidad de captura
@@ -1190,7 +1370,8 @@ public class Mapa implements Screen {
                 String probTexto = "Probabilidad de captura: " + String.format("%.1f%%", probabilidad * 100);
                 font.setColor(Color.CYAN);
                 font.getData().setScale(1.0f);
-                com.badlogic.gdx.graphics.g2d.GlyphLayout layoutProb = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font, probTexto);
+                com.badlogic.gdx.graphics.g2d.GlyphLayout layoutProb = new com.badlogic.gdx.graphics.g2d.GlyphLayout(
+                        font, probTexto);
                 font.draw(game.batch, probTexto, cuadroX + (cuadroW - layoutProb.width) / 2f, cuadroY + 30);
             } catch (Exception e) {
                 // Ignorar errores al calcular probabilidad

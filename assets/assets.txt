@@ -15,6 +15,7 @@ MarcoInventario2.png
 MarcoInventariobase.png
 Multiplayer.png
 MultiplayerC.png
+NPC.tsx
 Opciones.png
 OpcionesC.png
 PartidaIndividual.png
@@ -27,6 +28,7 @@ Pokepausa.png
 Salir.png
 SalirC.png
 TexturasVerde.tsx
+TileSets/Personajes.png
 TileSets/PokebolasTiled.png
 TileSets/TilesetPokemon.png
 arceus.jpg
