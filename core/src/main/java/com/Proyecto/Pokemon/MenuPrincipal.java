@@ -122,7 +122,7 @@ public class MenuPrincipal implements Screen {
             // Ejecutar accion segun la opcion resaltada.
             switch (opcionSeleccionada) {
                 case PARTIDA_INDIVIDUAL:
-                    game.setScreen(new Mapa(game, "MapaVerdePokemon.tmx"));
+                    game.setScreen(new PantallaSeleccionPartida(game));
                     dispose();
                     break;
                 case MULTIPLAYER:

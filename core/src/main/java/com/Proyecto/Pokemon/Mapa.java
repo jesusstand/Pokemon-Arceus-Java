@@ -29,6 +29,9 @@ import com.badlogic.gdx.utils.Array;
  * del jugador.
  */
 public class Mapa implements Screen {
+
+    private String nombreMapa; // Added missing field
+
     /**
      * Determina si una capa entera contiene objetos que se pueden recoger.
      */
@@ -204,12 +207,15 @@ public class Mapa implements Screen {
                                 siguienteMapa += ".tmx";
                             }
 
-                            // IMPORTANTE: Reseteamos la posición del jugador para el nuevo mapa.
-                            // Podríamos guardarla en propiedades del portal si fuera necesario.
-                            jugador.getPosicion().set(10, 10);
-                            jugador.getDestino().set(10, 10);
+                            // Al cambiar de mapa, le pasamos el nombre del mapa actual para que el nuevo
+                            // sepa donde colocarnos (en el portal que apunta hacia AQUI)
+                            String mapaActual = nombreMapa;
+                            // Quitamos extension si la tiene para comparaciones mas limpias
+                            if (mapaActual.endsWith(".tmx")) {
+                                mapaActual = mapaActual.substring(0, mapaActual.length() - 4);
+                            }
 
-                            game.setScreen(new Mapa(game, siguienteMapa));
+                            game.setScreen(new Mapa(game, siguienteMapa, mapaActual));
                             dispose();
                         }
                     }
@@ -423,13 +429,29 @@ public class Mapa implements Screen {
      * @param nombreArchivo El nombre del archivo .tmx que se cargara.
      */
     public Mapa(Main game, String nombreArchivo) {
-        this.game = game;
+        this(game, nombreArchivo, null);
+    }
 
-        // 1. CARGAMOS EL MAPA PRIMERO (Fundamental para que no sea null)
-        mapaTiled = new TmxMapLoader().load(nombreArchivo);
+    /**
+     * Constructor que intenta spawnear al jugador en el portal que conecta con el
+     * mapa anterior.
+     */
+    public Mapa(Main game, String nombreArchivo, String nombreMapaAnterior) {
+        this.game = game;
+        this.nombreMapa = nombreArchivo;
+
+        // 1. CARGAMOS EL MAPA
+        try {
+            mapaTiled = new TmxMapLoader().load(nombreArchivo);
+        } catch (Exception e) {
+            System.err.println("Error cargando mapa: " + nombreArchivo);
+            Gdx.app.exit();
+            return;
+        }
+
         renderer = new OrthogonalTiledMapRenderer(mapaTiled, UNIT_SCALE, game.batch);
 
-        // 2. AHORA BUSCAMOS LA HIERBA (Ya que el mapa existe)
+        // 2. BUSCAMOS LA HIERBA
         MapLayer capaLogica = mapaTiled.getLayers().get("LogicaHierba");
         if (capaLogica != null) {
             for (MapObject objeto : capaLogica.getObjects()) {
@@ -445,15 +467,85 @@ public class Mapa implements Screen {
             }
         }
 
-        // 3. RESTO DE INICIALIZACIONES
-        anchoMapa = mapaTiled.getProperties().get("width", Integer.class);
-        altoMapa = mapaTiled.getProperties().get("height", Integer.class);
+        // 3. INICIALIZACION
+        if (mapaTiled.getProperties().containsKey("width")) {
+            anchoMapa = mapaTiled.getProperties().get("width", Integer.class);
+            altoMapa = mapaTiled.getProperties().get("height", Integer.class);
+        }
+
         camera = new OrthographicCamera();
+        camera.setToOrtho(false, 30, 20);
+
+        // --- SPAWN LOGIC ---
+        float spawnX = 10;
+        float spawnY = 10;
+
+        if (nombreMapaAnterior != null) {
+            // Buscamos un portal que tenga como Destino el mapa anterior
+            MapLayer capaPortales = null;
+            for (MapLayer layer : mapaTiled.getLayers()) {
+                if (layer.getName().equalsIgnoreCase("Portal") || layer.getName().equalsIgnoreCase("Portales")) {
+                    capaPortales = layer;
+                    break;
+                }
+            }
+
+            if (capaPortales != null) {
+                for (MapObject obj : capaPortales.getObjects()) {
+                    if (obj instanceof RectangleMapObject) {
+                        String destino = obj.getProperties().get("Destino", String.class);
+                        if (destino != null) {
+                            // Normalizamos quitando .tmx para comparar
+                            String destClean = destino.replace(".tmx", "");
+                            String prevClean = nombreMapaAnterior.replace(".tmx", "");
+
+                            if (destClean.equalsIgnoreCase(prevClean)) {
+                                Rectangle rect = ((RectangleMapObject) obj).getRectangle();
+
+                                float pX = rect.x * UNIT_SCALE;
+                                float pY = rect.y * UNIT_SCALE;
+
+                                spawnX = pX;
+                                spawnY = pY;
+
+                                // Heuristica para no spawnear ENCIMA del portal y volver a teletransportarse
+                                // Si estamos en un borde, nos movemos hacia adentro.
+                                // Si no, por defecto nos movemos hacia abajo (asumiendo puerta vertical).
+                                if (pY < 2) {
+                                    spawnY += 1; // Borde inferior -> Mover Arriba
+                                } else if (pY > altoMapa - 3) {
+                                    spawnY -= 1; // Borde superior -> Mover Abajo
+                                } else if (pX < 2) {
+                                    spawnX += 1; // Borde izquierdo -> Mover Derecha
+                                } else if (pX > anchoMapa - 3) {
+                                    spawnX -= 1; // Borde derecho -> Mover Izquierda
+                                } else {
+                                    spawnY -= 1; // Default: Mover Abajo (Salir de puerta)
+                                }
+
+                                System.out.println("Spawn encontrado hacia: " + destino + " | Offset aplicado");
+                                break; // Encontramos el portal, paramos
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Jugador
         this.jugador = game.getJugador();
+        if (this.jugador != null) {
+            this.jugador.getPosicion().set(spawnX, spawnY);
+            this.jugador.getDestino().set(spawnX, spawnY);
+        } else {
+            this.jugador = new Player(spawnX, spawnY);
+            game.setJugador(this.jugador);
+        }
+
         this.spawnPokemon = new SpawnPokemon();
         this.sistemaCaptura = new CapturaPokemon(jugador.getInventario());
 
-        // Carga de texturas (lo que ya tenías)
+        // Carga de texturas de UI
         pausaSalir = new Texture(Gdx.files.internal("Salir.png"));
         pausaSalirC = new Texture(Gdx.files.internal("SalirC.png"));
         pausaVolver = new Texture(Gdx.files.internal("Boton de Continuar base.png"));
@@ -465,6 +557,8 @@ public class Mapa implements Screen {
 
         font = new BitmapFont();
         font.getData().setScale(1.5f);
+        font.getRegion().getTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+
         Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pixmap.setColor(Color.WHITE);
         pixmap.fill();
@@ -483,40 +577,31 @@ public class Mapa implements Screen {
         texPokeball = new Texture(Gdx.files.internal("Pokeball.png"));
         marcoCrafteoSeleccionado = new Texture(Gdx.files.internal("MarcoInventariobase.png"));
         marcoCrafteoNoSeleccionado = new Texture(Gdx.files.internal("MarcoInventario2.png"));
-        font.getRegion().getTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
-        // Cargar NPC texture (usamos player_sprite temporalmente si no hay otro, o un
-        // region especifico)
-        // Para este ejemplo, tomaremos una region del player_sprite para el NPC
+        // NPC Init
+        npcs = new java.util.ArrayList<>();
+
+        // Texture region default for NPC
         Texture playerTex = new Texture(Gdx.files.internal("player_sprite.png"));
         TextureRegion npcRegion = new TextureRegion(playerTex, 0, 0, playerTex.getWidth() / 4,
                 playerTex.getHeight() / 4);
 
-        // 4. CARGAR NPCS DESDE TILED Y ELIMINARLOS DEL MAPA (para que no sean items)
-        npcs = new java.util.ArrayList<>();
-
         for (MapLayer layer : mapaTiled.getLayers()) {
-            // Solo nos interesan las capas de objetos
             if (layer.getObjects().getCount() > 0) {
-                // Usamos iterador para poder borrar el objeto de la capa una vez convertido a
-                // NPC
                 Iterator<MapObject> iter = layer.getObjects().iterator();
                 while (iter.hasNext()) {
                     MapObject obj = iter.next();
 
-                    // CRITERIO PARA SER NPC:
-                    // 1. La capa tiene "NPC" en el nombre
-                    // 2. O el objeto tiene la propiedad "NPC"
                     boolean esCapaNPC = layer.getName().toUpperCase().contains("NPC");
                     boolean tienePropiedadNPC = obj.getProperties().containsKey("NPC");
 
                     if (!esCapaNPC && !tienePropiedadNPC) {
-                        continue; // No es un NPC, seguimos
+                        continue;
                     }
 
                     float x = 0;
                     float y = 0;
-                    TextureRegion regionToUse = npcRegion; // Default fallback
+                    TextureRegion regionToUse = npcRegion;
                     boolean esValido = false;
 
                     if (obj instanceof RectangleMapObject) {
@@ -529,7 +614,6 @@ public class Mapa implements Screen {
                         x = tileObj.getX() * UNIT_SCALE;
                         y = tileObj.getY() * UNIT_SCALE;
 
-                        // SI TIENE TILE (GRÁFICO) EN TILED, USAMOS ESE
                         if (tileObj.getTile() != null) {
                             regionToUse = tileObj.getTile().getTextureRegion();
                         }
@@ -537,67 +621,53 @@ public class Mapa implements Screen {
                     }
 
                     if (esValido) {
-                        // Leer mensaje custom del objeto Tiled (si existe)
                         String msg = "Hola viajero!";
                         if (obj.getProperties().containsKey("mensaje")) {
                             msg = obj.getProperties().get("mensaje", String.class);
                         }
 
-                        // Leer tipo de NPC (Ej: "Enemigos")
                         String tipoNPC = "";
                         if (obj.getProperties().containsKey("NPC")) {
                             tipoNPC = obj.getProperties().get("NPC", String.class);
                         }
-                        // Default si la capa es NPC pero no tiene prop NPC
                         if (tipoNPC.isEmpty() && esCapaNPC)
                             tipoNPC = "Civil";
 
-                        // Leer Color del objeto en Tiled
                         Color objColor = null;
                         if (obj.getColor() != null) {
                             objColor = obj.getColor();
                         }
 
-                        // SNAP TO GRID
                         float snapX = Math.round(x);
                         float snapY = Math.round(y);
 
                         NPC nuevoNpc = new NPC(snapX, snapY, regionToUse, msg, objColor, tipoNPC);
                         npcs.add(nuevoNpc);
-                        System.out.println("NPC Cagado: " + tipoNPC + " en " + snapX + "," + snapY);
-
-                        // EL USUARIO PIDIO NO ELIMINARLOS DEL MAPA. OK.
-                        // iter.remove();
+                        System.out.println("NPC Cargado: " + tipoNPC + " en " + snapX + "," + snapY);
                     }
                 }
             }
 
-            // TAMBIEN BUSCAMOS EN CAPAS DE TILES (por si el usuario pinto el NPC como un
-            // tile normal)
             if (layer instanceof TiledMapTileLayer) {
                 TiledMapTileLayer tileLayer = (TiledMapTileLayer) layer;
                 for (int x = 0; x < tileLayer.getWidth(); x++) {
                     for (int y = 0; y < tileLayer.getHeight(); y++) {
                         TiledMapTileLayer.Cell cell = tileLayer.getCell(x, y);
                         if (cell != null && cell.getTile() != null) {
-                            // Check properties
                             String propNPC = getPropiedad(cell.getTile(), "NPC");
                             boolean isNPC = propNPC != null;
 
                             if (isNPC) {
-                                // Es un NPC pintado. Lo convertimos a objeto NPC.
                                 TextureRegion reg = cell.getTile().getTextureRegion();
                                 String msg = "Hola!";
                                 if (getPropiedad(cell.getTile(), "mensaje") != null)
                                     msg = getPropiedad(cell.getTile(), "mensaje");
 
-                                String tipo = propNPC; // El valor de la propiedad NPC es el tipo (Enemigo)
+                                String tipo = propNPC;
 
                                 NPC n = new NPC(x, y, reg, msg, null, tipo);
                                 npcs.add(n);
                                 System.out.println("NPC (Tile) Cargado: " + tipo + " en " + x + "," + y);
-
-                                // Aqui SI borramos el tile para que no se duplique grafico y logica
                                 tileLayer.setCell(x, y, null);
                             }
                         }
@@ -947,7 +1017,7 @@ public class Mapa implements Screen {
                     pbTex = texPokeball;
 
                 if (pbTex != null) {
-                    float iconSize = slotW * 0.6f;
+                    float iconSize = slotW * 0.5f;
                     game.batch.setColor(1, 1, 1, 1);
                     game.batch.draw(pbTex, slotX + (slotW - iconSize) / 2f, currentY + (slotH - iconSize) / 2f + 5,
                             iconSize, iconSize);

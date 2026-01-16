@@ -1,8 +1,14 @@
 .gitkeep
+Boton de Cargar Partida base.png
 Boton de Continuar base.png
 Boton de Continuar.png
 Boton de Craftear base.png
 Boton de Craftear.jpeg
+Boton de Nueva Partida base.png
+Boton de Nueva Partida.png
+Boton de cargar Partida.png
+Bulbasaur.png
+FondoEleccion.png
 MapaAzulPokemon.tmx
 MapaVerdePokemon.tmx
 Marco 8bit Goma.png
@@ -24,9 +30,12 @@ PokeCura.png
 PokeExp.png
 Pokeball.png
 PokebolaVerde.tsx
+PokemonEleccion.png
 Pokepausa.png
+Ponyta.png
 Salir.png
 SalirC.png
+Seel.png
 TexturasVerde.tsx
 TileSets/Personajes.png
 TileSets/PokebolasTiled.png

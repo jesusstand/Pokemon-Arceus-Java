@@ -72,7 +72,7 @@
 </data>
  </layer>
  <objectgroup id="3" name="Portal">
-  <object id="4" name="PortalAzul" x="320" y="447.333" width="64.6667" height="32">
+  <object id="4" name="PortalAzul" x="320" y="463.833" width="64.6667" height="15.5">
    <properties>
     <property name="Destino" value="MapaVerdePokemon"/>
    </properties>
