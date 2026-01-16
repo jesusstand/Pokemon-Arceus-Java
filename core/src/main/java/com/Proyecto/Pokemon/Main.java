@@ -15,6 +15,7 @@ public class Main extends Game {
      */
     public SpriteBatch batch;
     private Player jugador;
+    private Pokemon pokemonInicial;
 
     @Override
     public void create() {
@@ -23,6 +24,10 @@ public class Main extends Game {
 
         // Inicializamos el jugador de forma global para persistir su inventario.
         jugador = new Player(10, 10);
+
+        // Pokemon inicial por defecto (se sobreescribirá en PantallaDeEleccion)
+        // Usamos un placeholder temporalmente
+        pokemonInicial = new PokeFuego.Ignirrojo("Macho");
 
         // Se establece la pantalla inicial del juego.
         setScreen(new PantallaDeInicio(this));
@@ -34,6 +39,14 @@ public class Main extends Game {
 
     public void setJugador(Player jugador) {
         this.jugador = jugador;
+    }
+
+    public Pokemon getPokemonInicial() {
+        return pokemonInicial;
+    }
+
+    public void setPokemonInicial(Pokemon pokemon) {
+        this.pokemonInicial = pokemon;
     }
 
     @Override

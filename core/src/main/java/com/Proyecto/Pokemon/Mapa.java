@@ -257,6 +257,26 @@ public class Mapa implements Screen {
             if (grassTimer >= 5f) {
                 System.out.println("Inicia pelea pokemon!");
                 grassTimer = 0;
+
+                // Iniciar Batalla
+                // Crear un pokemon rival aleatorio (usando SpawnPokemon que ya existe en esta
+                // clase)
+                Pokemon rival = spawnPokemon.verificarEncuentro();
+                if (rival == null) {
+                    // Fallback si spawn devuelve null (aunque verificamos encuentro forzado por
+                    // tiempo)
+                    rival = new PokePlanta.Brotalamo("Salvaje");
+                }
+
+                // Obtener pokemon del jugador
+                Pokemon miPokemon = game.getPokemonInicial();
+                if (miPokemon == null) {
+                    miPokemon = new PokeFuego.Ignirrojo("Macho"); // Fallback
+                }
+
+                // Cambiar a pantalla de batalla
+                // Importante: Pasamos 'this' (Mapa) para poder volver
+                game.setScreen(new PantallaBatalla(game, this, miPokemon, rival));
             }
         } else if (!enHierba) {
             grassTimer = 0;

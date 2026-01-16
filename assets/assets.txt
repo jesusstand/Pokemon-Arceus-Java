@@ -1,4 +1,12 @@
 .gitkeep
+Boton Equipo activo.png
+Boton Equipo.png
+Boton Huir activo.png
+Boton Huir.png
+Boton Mochila activo.png
+Boton Mochila.png
+Boton Pelea activo.png
+Boton Pelea.png
 Boton de Cargar Partida base.png
 Boton de Continuar base.png
 Boton de Continuar.png
@@ -8,6 +16,7 @@ Boton de Nueva Partida base.png
 Boton de Nueva Partida.png
 Boton de cargar Partida.png
 Bulbasaur.png
+CampoBatalla.png
 FondoEleccion.png
 MapaAzulPokemon.tmx
 MapaVerdePokemon.tmx

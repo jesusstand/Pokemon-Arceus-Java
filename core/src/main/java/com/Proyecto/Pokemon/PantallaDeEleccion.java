@@ -119,10 +119,24 @@ public class PantallaDeEleccion implements Screen {
     }
 
     private void seleccionarPokemon() {
-        // Por ahora, el jugador no tiene metodo para setear el pokemon inicial
-        // especifico
-        // (segun analisis de Player.java).
-        // Asi que simplemente cargamos el mapa.
+        // Guardar el pokemon inicial en Main
+        Pokemon seleccionado;
+        switch (opcionSeleccionada) {
+            case 0:
+                seleccionado = new PokeFuego.Ignirrojo("Macho"); // Representa a Ponyta por ahora
+                break;
+            case 1:
+                seleccionado = new PokeAgua.Aqualisca("Macho"); // Representa a Seel por ahora
+                break;
+            case 2:
+                seleccionado = new PokePlanta.Brotalamo("Macho"); // Representa a Bulbasaur por ahora
+                break;
+            default:
+                seleccionado = new PokeFuego.Ignirrojo("Macho");
+        }
+        game.setPokemonInicial(seleccionado);
+
+        // Cargar el mapa
         game.setScreen(new Mapa(game, "MapaVerdePokemon.tmx"));
         dispose();
     }
