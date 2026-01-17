@@ -1,5 +1,10 @@
 package com.Proyecto.Pokemon;
 
+import com.Proyecto.Pokemon.pokemon.Pokemon;
+import com.Proyecto.Pokemon.pokemon.PokeFuego;
+import com.Proyecto.Pokemon.pokemon.PokeAgua;
+import com.Proyecto.Pokemon.pokemon.PokePlanta;
+import com.Proyecto.Pokemon.sistema.Batalla;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.Screen;

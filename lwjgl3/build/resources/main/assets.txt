@@ -1,4 +1,16 @@
 .gitkeep
+Aethergon_Atras_0.png
+Aethergon_Atras_1.png
+Aethergon_Atras_2.png
+Aethergon_Frente_0.png
+Aethergon_Frente_1.png
+Aethergon_Frente_2.png
+Aqualisca_Atras_0.png
+Aqualisca_Atras_1.png
+Aqualisca_Atras_2.png
+Aqualisca_Frente_0.png
+Aqualisca_Frente_1.png
+Aqualisca_Frente_2.png
 Boton Equipo activo.png
 Boton Equipo.png
 Boton Huir activo.png
@@ -15,9 +27,33 @@ Boton de Craftear.jpeg
 Boton de Nueva Partida base.png
 Boton de Nueva Partida.png
 Boton de cargar Partida.png
+Brotálamo_Atras_0.png
+Brotálamo_Atras_1.png
+Brotálamo_Atras_2.png
+Brotálamo_Frente_0.png
+Brotálamo_Frente_1.png
+Brotálamo_Frente_2.png
 Bulbasaur.png
 CampoBatalla.png
+Dracórnea_Atras_0.png
+Dracórnea_Atras_1.png
+Dracórnea_Atras_2.png
+Dracórnea_Frente_0.png
+Dracórnea_Frente_1.png
+Dracórnea_Frente_2.png
+Floravelo_Atras_0.png
+Floravelo_Atras_1.png
+Floravelo_Atras_2.png
+Floravelo_Frente_0.png
+Floravelo_Frente_1.png
+Floravelo_Frente_2.png
 FondoEleccion.png
+Ignirrojo_Atras_0.png
+Ignirrojo_Atras_1.png
+Ignirrojo_Atras_2.png
+Ignirrojo_Frente_0.png
+Ignirrojo_Frente_1.png
+Ignirrojo_Frente_2.png
 MapaAzulPokemon.tmx
 MapaVerdePokemon.tmx
 Marco 8bit Goma.png
@@ -28,6 +64,12 @@ Marco 8bit.png
 MarcoInventario.png
 MarcoInventario2.png
 MarcoInventariobase.png
+Mareónix_Atras_0.png
+Mareónix_Atras_1.png
+Mareónix_Atras_2.png
+Mareónix_Frente_0.png
+Mareónix_Frente_1.png
+Mareónix_Frente_2.png
 Multiplayer.png
 MultiplayerC.png
 NPC.tsx
@@ -49,6 +91,12 @@ TexturasVerde.tsx
 TileSets/Personajes.png
 TileSets/PokebolasTiled.png
 TileSets/TilesetPokemon.png
+Volcárex_Atras_0.png
+Volcárex_Atras_1.png
+Volcárex_Atras_2.png
+Volcárex_Frente_0.png
+Volcárex_Frente_1.png
+Volcárex_Frente_2.png
 arceus.jpg
 pantalladeinicio.jpg
 player_sprite.png
