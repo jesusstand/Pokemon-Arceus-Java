@@ -1,5 +1,9 @@
 package com.Proyecto.Pokemon;
 
+import com.Proyecto.Pokemon.jugador.Player;
+import com.Proyecto.Pokemon.gui.PantallaDeInicio;
+import com.Proyecto.Pokemon.pokemon.Pokemon;
+import com.Proyecto.Pokemon.pokemon.PokeFuego;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 

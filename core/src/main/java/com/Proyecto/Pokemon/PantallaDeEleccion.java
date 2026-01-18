@@ -1,5 +1,10 @@
 package com.Proyecto.Pokemon;
 
+import com.Proyecto.Pokemon.pokemon.Pokemon;
+import com.Proyecto.Pokemon.pokemon.PokeFuego;
+import com.Proyecto.Pokemon.pokemon.PokeAgua;
+import com.Proyecto.Pokemon.pokemon.PokePlanta;
+import com.Proyecto.Pokemon.gui.Mapa;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
@@ -8,16 +13,16 @@ import com.badlogic.gdx.Input.Keys;
 
 /**
  * Pantalla de eleccion del Pokemon inicial.
- * Permite seleccionar entre Ponyta, Seel y Bulbasaur.
+ * Permite seleccionar entre Ponyta, aqualisca y brotalamo.
  */
 public class PantallaDeEleccion implements Screen {
 
     private Main game;
     private Texture fondo;
     private Texture titulo;
-    private Texture ponyta, seel, bulbasaur;
+    private Texture ignirrojo, aqualisca, brotalamo;
 
-    private int opcionSeleccionada = 0; // 0: Ponyta, 1: Seel, 2: Bulbasaur
+    private int opcionSeleccionada = 0; // 0: Ponyta, 1: aqualisca, 2: brotalamo
     private static final int CANTIDAD_POKEMON = 3;
 
     public PantallaDeEleccion(Main game) {
@@ -27,9 +32,9 @@ public class PantallaDeEleccion implements Screen {
         fondo = new Texture(Gdx.files.internal("FondoEleccion.png"));
         titulo = new Texture(Gdx.files.internal("PokemonEleccion.png"));
 
-        ponyta = new Texture(Gdx.files.internal("Ponyta.png"));
-        seel = new Texture(Gdx.files.internal("Seel.png"));
-        bulbasaur = new Texture(Gdx.files.internal("Bulbasaur.png"));
+        ignirrojo = new Texture(Gdx.files.internal("Ignirrojo_Frente_0.png"));
+        aqualisca = new Texture(Gdx.files.internal("Aqualisca_Frente_0.png"));
+        brotalamo = new Texture(Gdx.files.internal("Brotálamo_Frente_0.png"));
     }
 
     @Override
@@ -68,13 +73,13 @@ public class PantallaDeEleccion implements Screen {
         float startY = sh * 0.2f;
 
         // --- PONYTA (Indice 0) ---
-        dibujarPokemon(ponyta, 0, margenX, startY, sizeBase);
+        dibujarPokemon(ignirrojo, 0, margenX, startY, sizeBase);
 
-        // --- SEEL (Indice 1) ---
-        dibujarPokemon(seel, 1, margenX + pokeW, startY, sizeBase);
+        // --- aqualisca (Indice 1) ---
+        dibujarPokemon(aqualisca, 1, margenX + pokeW, startY, sizeBase);
 
-        // --- BULBASAUR (Indice 2) ---
-        dibujarPokemon(bulbasaur, 2, margenX + pokeW * 2, startY, sizeBase);
+        // --- brotalamo (Indice 2) ---
+        dibujarPokemon(brotalamo, 2, margenX + pokeW * 2, startY, sizeBase);
 
         game.batch.end();
 
@@ -126,10 +131,10 @@ public class PantallaDeEleccion implements Screen {
                 seleccionado = new PokeFuego.Ignirrojo("Macho"); // Representa a Ponyta por ahora
                 break;
             case 1:
-                seleccionado = new PokeAgua.Aqualisca("Macho"); // Representa a Seel por ahora
+                seleccionado = new PokeAgua.Aqualisca("Macho"); // Representa a aqualisca por ahora
                 break;
             case 2:
-                seleccionado = new PokePlanta.Brotalamo("Macho"); // Representa a Bulbasaur por ahora
+                seleccionado = new PokePlanta.Brotalamo("Macho"); // Representa a brotalamo por ahora
                 break;
             default:
                 seleccionado = new PokeFuego.Ignirrojo("Macho");
@@ -165,8 +170,8 @@ public class PantallaDeEleccion implements Screen {
     public void dispose() {
         fondo.dispose();
         titulo.dispose();
-        ponyta.dispose();
-        seel.dispose();
-        bulbasaur.dispose();
+        ignirrojo.dispose();
+        aqualisca.dispose();
+        brotalamo.dispose();
     }
 }

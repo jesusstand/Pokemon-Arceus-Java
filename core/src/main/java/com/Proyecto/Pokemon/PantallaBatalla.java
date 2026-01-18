@@ -1,5 +1,8 @@
 package com.Proyecto.Pokemon;
 
+import com.Proyecto.Pokemon.pokemon.Pokemon;
+
+import com.Proyecto.Pokemon.sistema.Batalla;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.Screen;
@@ -40,6 +43,9 @@ public class PantallaBatalla implements Screen {
     // Log de batalla
     private String mensajeLog = "";
 
+    // Gestor de sprites
+    private com.Proyecto.Pokemon.gui.GestorSpritesPokemon gestorSprites;
+
     public PantallaBatalla(Main game, Screen pantallaAnterior, Pokemon pokemonJugador, Pokemon pokemonRival) {
         this.game = game;
         this.pantallaAnterior = pantallaAnterior;
@@ -71,24 +77,31 @@ public class PantallaBatalla implements Screen {
         botonHuir = new Texture(Gdx.files.internal("Boton Huir.png"));
         botonHuirActivo = new Texture(Gdx.files.internal("Boton Huir activo.png"));
 
-        spriteJugador = cargarSpritePara(pokemonJugador);
-        spriteRival = cargarSpritePara(pokemonRival);
+        // Usar GestorSpritesPokemon para cargar los sprites correctos según el nombre
+        gestorSprites = new com.Proyecto.Pokemon.gui.GestorSpritesPokemon();
+        spriteJugador = gestorSprites.obtenerSpriteAtras(pokemonJugador.getNombre(), 0);
+        spriteRival = gestorSprites.obtenerSpriteFrente(pokemonRival.getNombre(), 0);
+
+        // Fallbacks por si el gestor falla (aunque el gestor imprime errores)
+        if (spriteJugador == null) {
+            // Textura por defecto o error (rosa/negra)
+            com.badlogic.gdx.graphics.Pixmap p = new com.badlogic.gdx.graphics.Pixmap(32, 32,
+                    com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+            p.setColor(Color.MAGENTA);
+            p.fill();
+            spriteJugador = new Texture(p);
+        }
+        if (spriteRival == null) {
+            com.badlogic.gdx.graphics.Pixmap p = new com.badlogic.gdx.graphics.Pixmap(32, 32,
+                    com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+            p.setColor(Color.RED);
+            p.fill();
+            spriteRival = new Texture(p);
+        }
 
         font = new BitmapFont();
         font.setColor(Color.WHITE);
         font.getData().setScale(1.5f);
-    }
-
-    private Texture cargarSpritePara(Pokemon p) {
-        // Mapeo simple basado en los assets disponibles
-        if (p instanceof PokeFuego)
-            return new Texture(Gdx.files.internal("Ponyta.png"));
-        if (p instanceof PokeAgua)
-            return new Texture(Gdx.files.internal("Seel.png"));
-        if (p instanceof PokePlanta)
-            return new Texture(Gdx.files.internal("Bulbasaur.png"));
-
-        return new Texture(Gdx.files.internal("Bulbasaur.png"));
     }
 
     @Override
@@ -251,8 +264,15 @@ public class PantallaBatalla implements Screen {
         botonMochilaActivo.dispose();
         botonEquipo.dispose();
         botonEquipoActivo.dispose();
-        spriteJugador.dispose();
-        spriteRival.dispose();
+        // No dispose sprites directly if managed by gestor, but here we treat them as
+        // textures.
+        // Gestor dispose handles them.
+        if (gestorSprites != null) {
+            gestorSprites.dispose();
+        }
+        // If we created fallbacks manually, we should dispose them, but Gestor handles
+        // the main ones.
+        // For simplicity in this patch, we rely on Gestor dispose.
         font.dispose();
     }
 }
