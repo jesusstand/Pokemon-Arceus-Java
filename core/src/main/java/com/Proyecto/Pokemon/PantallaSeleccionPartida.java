@@ -1,6 +1,11 @@
 package com.Proyecto.Pokemon;
 
 import com.Proyecto.Pokemon.gui.MenuPrincipal;
+import com.Proyecto.Pokemon.gui.Mapa;
+import com.Proyecto.Pokemon.sistema.GestorGuardado;
+import com.Proyecto.Pokemon.sistema.GestorGuardado.DatosPartida;
+import com.Proyecto.Pokemon.sistema.GestorMusica;
+import com.Proyecto.Pokemon.jugador.Player;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
@@ -115,8 +120,8 @@ public class PantallaSeleccionPartida implements Screen {
                     dispose();
                     break;
                 case CARGAR_PARTIDA:
-                    // No hace nada por ahora
-                    System.out.println("Cargar Partida no implementado aun.");
+                    // Cargar partida guardada
+                    cargarPartidaGuardada();
                     break;
                 case SALIR:
                     // Volver al menu principal
@@ -129,6 +134,8 @@ public class PantallaSeleccionPartida implements Screen {
 
     @Override
     public void show() {
+        // Reproducir música de menú
+        GestorMusica.reproducirMusica(GestorMusica.TipoMusica.MENU);
     }
 
     @Override
@@ -145,6 +152,95 @@ public class PantallaSeleccionPartida implements Screen {
 
     @Override
     public void hide() {
+    }
+
+    /**
+     * Carga una partida guardada y restaura el estado del juego.
+     */
+    private void cargarPartidaGuardada() {
+        // Verificar si existe una partida guardada
+        if (!GestorGuardado.existePartidaGuardada()) {
+            System.out.println("No hay partida guardada para cargar.");
+            // Aquí podrías mostrar un mensaje en pantalla al usuario
+            return;
+        }
+        
+        // Cargar los datos de la partida
+        DatosPartida datos = GestorGuardado.cargarPartida();
+        if (datos == null) {
+            System.err.println("Error: No se pudieron cargar los datos de la partida.");
+            return;
+        }
+        
+        try {
+            // Recrear el Pokemon desde los datos guardados
+            com.Proyecto.Pokemon.pokemon.Pokemon pokemon = GestorGuardado.recrearPokemon(datos);
+            if (pokemon == null) {
+                System.err.println("Error: No se pudo recrear el Pokemon.");
+                return;
+            }
+            
+            // Crear o actualizar el jugador con la posición guardada
+            Player jugador = new Player(datos.posicionX, datos.posicionY);
+            
+            // Restaurar el inventario
+            GestorGuardado.restaurarInventario(jugador, datos);
+            
+            // Establecer el jugador y Pokemon en el juego
+            game.setJugador(jugador);
+            game.setPokemonInicial(pokemon);
+            
+            // Asegurar que el Pokemon inicial esté en el equipo/mochila
+            // (en caso de que no esté por alguna razón)
+            if (jugador != null && jugador.getSistemaCaptura() != null) {
+                java.util.List<com.Proyecto.Pokemon.pokemon.Pokemon> capturados = 
+                    jugador.getSistemaCaptura().getPokemonsCapturados();
+                boolean estaEnEquipo = false;
+                for (com.Proyecto.Pokemon.pokemon.Pokemon p : capturados) {
+                    if (p.getNombre().equals(pokemon.getNombre()) && 
+                        p.getTipo() == pokemon.getTipo()) {
+                        estaEnEquipo = true;
+                        break;
+                    }
+                }
+                // Si no está en el equipo, agregarlo
+                if (!estaEnEquipo) {
+                    capturados.add(pokemon);
+                    System.out.println("¡" + pokemon.getNombre() + " ha sido agregado a tu equipo!");
+                }
+            }
+            
+            // Construir el nombre del archivo del mapa (agregar prefijo y extensión si es necesario)
+            String nombreMapa = datos.mapaActual;
+            if (nombreMapa == null || nombreMapa.isEmpty()) {
+                nombreMapa = "MapaVerdePokemon";
+            }
+            
+            // Asegurar que tenga el formato correcto: "Tiled/MapaVerdePokemon.tmx"
+            if (!nombreMapa.startsWith("Tiled/")) {
+                nombreMapa = "Tiled/" + nombreMapa;
+            }
+            if (!nombreMapa.endsWith(".tmx")) {
+                nombreMapa = nombreMapa + ".tmx";
+            }
+            
+            System.out.println("Cargando partida guardada en mapa: " + nombreMapa);
+            System.out.println("Posición del jugador: (" + datos.posicionX + ", " + datos.posicionY + ")");
+            System.out.println("Pokemon: " + pokemon.getNombre() + " (" + pokemon.getTipo() + ")");
+            
+            // Cargar el mapa con la posición del jugador ya establecida
+            // El constructor de Mapa usará la posición del jugador que ya está en game.getJugador()
+            game.setScreen(new Mapa(game, nombreMapa));
+            dispose();
+            
+        } catch (Exception e) {
+            System.err.println("Error al cargar la partida: " + e.getMessage());
+            e.printStackTrace();
+            // En caso de error, permitir iniciar una nueva partida
+            System.out.println("Iniciando nueva partida debido al error...");
+            game.setScreen(new PantallaDeEleccion(game));
+            dispose();
+        }
     }
 
     @Override

@@ -3,12 +3,14 @@ package com.Proyecto.Pokemon.gui;
 import com.Proyecto.Pokemon.Main;
 import com.Proyecto.Pokemon.NPC;
 import com.Proyecto.Pokemon.PantallaBatalla;
+import com.Proyecto.Pokemon.PantallaPokemonCapturados;
 import com.Proyecto.Pokemon.jugador.Player;
 import com.Proyecto.Pokemon.pokemon.Pokemon;
-
 import com.Proyecto.Pokemon.pokemon.PokeFuego;
 import com.Proyecto.Pokemon.sistema.SpawnPokemon;
 import com.Proyecto.Pokemon.sistema.CapturaPokemon;
+import com.Proyecto.Pokemon.sistema.GestorGuardado;
+import com.Proyecto.Pokemon.sistema.GestorMusica;
 import com.Proyecto.Pokemon.excepciones.ExcepcionInventarioLleno;
 import com.Proyecto.Pokemon.excepciones.ExcepcionMaterialesInsuficientes;
 import com.Proyecto.Pokemon.excepciones.ExcepcionPokebolaInsuficiente;
@@ -51,17 +53,17 @@ public class Mapa implements Screen {
     private float grassTimer = 0;
     private Array<Rectangle> zonasHierba = new Array<>();
     private java.util.List<NPC> npcs;
-
+    
     // --- ESTADO DE PAUSA ---
     private boolean pausado = false;
     private boolean inventarioAbierto = false;
     private int opcionPausa = 0; // 0: Volver, 1: Opciones, 2: Salir
+    private boolean saliendoAlMenu = false; // Bandera para indicar que estamos saliendo
     // --- ESTADO CRAFTEO ---
     private boolean menuCrafteoAbierto = false;
     private int opcionCrafteo = 1; // 0, 1, 2
     // --- ESTADO POKEMON CAPTURADOS ---
-    private boolean menuPokemonAbierto = false;
-    private int pokemonSeleccionado = 0; // ├ìndice del Pokemon seleccionado
+    // Nota: Ahora usamos PantallaPokemonCapturados en lugar de un menú interno
     private Texture marcoCrafteoSeleccionado;
     private Texture marcoCrafteoNoSeleccionado;
     private Texture pausaSalir, pausaSalirC, pausaVolver, pausaVolverC, pausaOpciones, pausaOpcionesC, pausaPokepausa;
@@ -92,6 +94,8 @@ public class Mapa implements Screen {
     private float anchoMapa, altoMapa;
     // Escala unitaria: 1 unidad de mundo = 16 pixeles (tama├▒o de un tile).
     private static final float UNIT_SCALE = 1 / 16f;
+
+
 
     /**
      * Determina si una capa entera contiene objetos que se pueden recoger.
@@ -172,9 +176,13 @@ public class Mapa implements Screen {
         return false;
     }
 
+    private void curarEquipoSilencioso() {
+        System.out.println("Equipo Silencioso");
+    }
+
     /**
      * Verifica si el jugador está en un tile de hierba.
-     * 
+     *
      * @param x Coordenada X del jugador.
      * @param y Coordenada Y del jugador.
      * @return true si está en hierba, false si no.
@@ -242,8 +250,7 @@ public class Mapa implements Screen {
      * @param y Coordenada Y del jugador.
      */
     public void revisarPortales(float x, float y) {
-        // Buscamos la capa de portales de forma m├ís flexible (insensible a
-        // may├║sculas).
+        // Buscamos la capa de portales de forma más flexible (insensible a mayúsculas).
         MapLayer capaObjetos = null;
         for (MapLayer layer : mapaTiled.getLayers()) {
             if (layer.getName().equalsIgnoreCase("Portal") || layer.getName().equalsIgnoreCase("Portales")) {
@@ -268,6 +275,10 @@ public class Mapa implements Screen {
                             if (!siguienteMapa.endsWith(".tmx")) {
                                 siguienteMapa += ".tmx";
                             }
+                            // Agregar prefijo Tiled/ si no está presente
+                            if (!siguienteMapa.startsWith("Tiled/")) {
+                                siguienteMapa = "Tiled/" + siguienteMapa;
+                            }
 
                             // Al cambiar de mapa, le pasamos el nombre del mapa actual para que el nuevo
                             // sepa donde colocarnos (en el portal que apunta hacia AQUI)
@@ -286,6 +297,47 @@ public class Mapa implements Screen {
         }
     }
 
+    public void revisarPortalCentro(float playerX, float playerY) {
+        MapLayer capa = mapaTiled.getLayers().get("PortalCentro");
+        if (capa == null) return;
+
+        for (MapObject objeto : capa.getObjects()) {
+            if (objeto instanceof RectangleMapObject) {
+                Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
+
+                // CONVERSIÓN: Tiled usa píxeles (ej. 160), Player usa tiles (ej. 10)
+                // Dividimos por 16 (o el tamaño de tu tile) para que los números hablen el mismo idioma
+                float escala = 16f;
+                float rX = rect.x / escala;
+                float rY = rect.y / escala;
+                float rW = rect.width / escala;
+                float rH = rect.height / escala;
+
+                // Verificamos la colisión con un pequeño margen de error (0.1f)
+                if (playerX >= rX - 0.1f && playerX <= (rX + rW) + 0.1f &&
+                        playerY >= rY - 0.1f && playerY <= (rY + rH) + 0.1f) {
+
+                    String destino = objeto.getProperties().get("Destino", String.class);
+                    if (destino != null) {
+                        cambiarMapa(destino, "Entrada");
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    private void cambiarMapa(String nombreArchivo, String spawnPoint) {
+        if (!nombreArchivo.endsWith(".tmx")) nombreArchivo += ".tmx";
+        if (!nombreArchivo.startsWith("Tiled/")) nombreArchivo = "Tiled/" + nombreArchivo;
+
+        System.out.println("Cambiando a: " + nombreArchivo + " en spawn: " + spawnPoint);
+
+        // Aquí usamos los dos parámetros para el constructor
+        game.setScreen(new Mapa(game, nombreArchivo, spawnPoint));
+        this.dispose();
+    }
+
+
     /**
      * Bucle de renderizado principal de la pantalla.
      *
@@ -293,6 +345,17 @@ public class Mapa implements Screen {
      */
     @Override
     public void render(float delta) {
+        // Si estamos saliendo al menú, no renderizar nada más
+        if (saliendoAlMenu) {
+            return;
+        }
+
+        if (this.nombreMapa != null && this.nombreMapa.contains("MapaCentro")) {
+            camera.position.set( 20f, 7.5f, 0);
+        } else {
+            // En cualquier otro mapa, la cámara sigue al jugador
+            camera.position.set(jugador.getX(), jugador.getY(), 0);
+        }
 
         boolean enHierba = false;
         for (Rectangle zona : zonasHierba) {
@@ -321,9 +384,12 @@ public class Mapa implements Screen {
                 grassTimer = 0;
 
                 // Iniciar Batalla
-                // Crear un pokemon rival aleatorio (usando SpawnPokemon que ya existe en esta
-                // clase)
-                Pokemon rival = spawnPokemon.obtenerPokemonAleatorio();
+                // Crear un pokemon rival aleatorio (usando SpawnPokemon que ya existe en esta clase)
+                Pokemon rival = spawnPokemon.verificarEncuentro();
+                if (rival == null) {
+                    // Si no hay encuentro, usar un pokemon por defecto
+                    rival = new PokeFuego.Ignirrojo("Macho");
+                }
 
                 // Obtener pokemon del jugador
                 Pokemon miPokemon = game.getPokemonInicial();
@@ -339,6 +405,7 @@ public class Mapa implements Screen {
             grassTimer = 0;
         }
 
+
         // Al pulsar ESCAPE alternamos la pausa.
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
             if (!inventarioAbierto && !menuCrafteoAbierto) { // Evitar abrir pausa si estamos crafteando
@@ -352,7 +419,7 @@ public class Mapa implements Screen {
 
         // Al pulsar E alternamos el inventario.
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.E)) {
-            if (!pausado && !menuPokemonAbierto) {
+            if (!pausado) {
                 if (menuCrafteoAbierto) {
                     menuCrafteoAbierto = false;
                     inventarioAbierto = true; // Volver al inv
@@ -362,13 +429,11 @@ public class Mapa implements Screen {
             }
         }
 
-        // Al pulsar P alternamos el men├║ de Pokemon capturados.
+        // Al pulsar P abrir pantalla de Pokemon capturados.
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
             if (!pausado && !inventarioAbierto && !menuCrafteoAbierto && !enEncuentro) {
-                menuPokemonAbierto = !menuPokemonAbierto;
-                if (menuPokemonAbierto) {
-                    pokemonSeleccionado = 0; // Resetear selecci├│n al abrir
-                }
+                // Abrir directamente la pantalla de Pokemon capturados
+                game.setScreen(new PantallaPokemonCapturados(game, this));
             }
         }
 
@@ -376,26 +441,54 @@ public class Mapa implements Screen {
             actualizarEntradaPausa();
         } else if (enEncuentro) {
             actualizarEntradaEncuentro();
-        } else if (menuPokemonAbierto) {
-            actualizarEntradaPokemon();
         } else if (menuCrafteoAbierto) {
             actualizarEntradaCrafteo();
         } else if (inventarioAbierto) {
             actualizarEntradaInventario();
         } else {
-            // Solo actualizamos al jugador si no esta pausado ni en inventario.
+            // --- DENTRO DEL MÉTODO RENDER, EN EL BLOQUE 'ELSE' DEL JUGADOR ---
             jugador.update(delta, this);
+
+// 1. LÓGICA DE CURACIÓN (Centro Pokemon)
+            MapLayer capaZonas = mapaTiled.getLayers().get("ZonasEspeciales");
+            if (capaZonas != null) {
+                for (MapObject objeto : capaZonas.getObjects()) {
+                    if (objeto instanceof RectangleMapObject && "ZonaCuracion".equals(objeto.getName())) {
+                        Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
+                        // Escalamos el área al tamaño del mundo
+                        Rectangle areaCuracion = new Rectangle(rect.x * UNIT_SCALE, rect.y * UNIT_SCALE, rect.width * UNIT_SCALE, rect.height * UNIT_SCALE);
+
+                        if (areaCuracion.overlaps(new Rectangle(jugador.getX(), jugador.getY(), 1, 1))) {
+                            curarEquipoSilencioso(); // Este método debe usar inicial.curar() como vimos antes
+                        }
+                    }
+                }
+            }
+
+// 2. LÓGICA DE ENCUENTROS (Hierba)
+            if (estaEnHierba(jugador.getX(), jugador.getY()) && jugador.isMoviendose()) {
+                grassTimer += delta;
+                if (grassTimer > 1.0f) { // Cada 1 segundo de movimiento
+                    grassTimer = 0;
+                    verificarEncuentroPokemon(jugador.getX(), jugador.getY());
+                }
+            }
         }
 
         float halfWidth = camera.viewportWidth / 2f;
         float halfHeight = camera.viewportHeight / 2f;
 
-        // Mantener la camara centrada en el jugador pero dentro de los limites del
-        // mapa.
-        float camX = MathUtils.clamp(jugador.getX() + 0.5f, halfWidth, anchoMapa - halfWidth);
-        float camY = MathUtils.clamp(jugador.getY() + 0.5f, halfHeight, altoMapa - halfHeight);
+        if (this.nombreMapa != null && this.nombreMapa.contains("MapaCentro")) {
+            camera.position.set( 7f, 6f, 0);
+            camera.zoom = 1.5f;
+        } else {
+            // En cualquier otro mapa, la cámara sigue al jugador
+            float camX = MathUtils.clamp(jugador.getX() + 0.5f, halfWidth, anchoMapa - halfWidth);
+            float camY = MathUtils.clamp(jugador.getY() + 0.5f, halfHeight, altoMapa - halfHeight);
+            camera.position.set(camX, camY, 0);
 
-        camera.position.set(camX, camY, 0);
+        }
+
         camera.update();
 
         // Limpiar la pantalla.
@@ -425,14 +518,6 @@ public class Mapa implements Screen {
             dibujarMenuPausa();
         } else if (enEncuentro) {
             dibujarEncuentroPokemon();
-            if (mostrandoError)
-                dibujarCuadroError(delta);
-        } else if (menuPokemonAbierto) {
-            dibujarMenuPokemon();
-            if (mostrandoError)
-                dibujarCuadroError(delta);
-        } else if (menuPokemonAbierto) {
-            dibujarMenuPokemon();
             if (mostrandoError)
                 dibujarCuadroError(delta);
         } else if (menuCrafteoAbierto) {
@@ -469,109 +554,75 @@ public class Mapa implements Screen {
 
         // 1. CARGAMOS EL MAPA
         try {
-            mapaTiled = new TmxMapLoader().load(nombreArchivo);
+            TmxMapLoader loader = new TmxMapLoader();
+            mapaTiled = loader.load(nombreArchivo);
         } catch (Exception e) {
-            System.err.println("Error cargando mapa: " + nombreArchivo);
-            Gdx.app.exit();
-            return;
+            throw new RuntimeException("No se pudo cargar el mapa: " + nombreArchivo, e);
         }
 
         renderer = new OrthogonalTiledMapRenderer(mapaTiled, UNIT_SCALE, game.batch);
 
-        // 2. BUSCAMOS LA HIERBA
+        // 2. BUSCAMOS LA HIERBA (Mantener igual)
         MapLayer capaLogica = mapaTiled.getLayers().get("LogicaHierba");
         if (capaLogica != null) {
             for (MapObject objeto : capaLogica.getObjects()) {
                 if (objeto instanceof RectangleMapObject) {
                     Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
-                    Rectangle rectEscalado = new Rectangle(
-                            rect.x * UNIT_SCALE,
-                            rect.y * UNIT_SCALE,
-                            rect.width * UNIT_SCALE,
-                            rect.height * UNIT_SCALE);
-                    zonasHierba.add(rectEscalado);
+                    zonasHierba.add(new Rectangle(rect.x * UNIT_SCALE, rect.y * UNIT_SCALE, rect.width * UNIT_SCALE, rect.height * UNIT_SCALE));
                 }
             }
         }
 
-        // 3. INICIALIZACION
-        if (mapaTiled.getProperties().containsKey("width")) {
-            anchoMapa = mapaTiled.getProperties().get("width", Integer.class);
-            altoMapa = mapaTiled.getProperties().get("height", Integer.class);
-        }
+        // 3. PROPIEDADES DEL MAPA
+        anchoMapa = mapaTiled.getProperties().get("width", Integer.class);
+        altoMapa = mapaTiled.getProperties().get("height", Integer.class);
 
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 30, 20);
 
-        // --- SPAWN LOGIC ---
-        float spawnX = 10;
+        // --- NUEVA LÓGICA DE SPAWN CORREGIDA ---
+        float spawnX = 10; // Posición por defecto
         float spawnY = 10;
 
         if (nombreMapaAnterior != null) {
-            // Buscamos un portal que tenga como Destino el mapa anterior
-            MapLayer capaPortales = null;
-            for (MapLayer layer : mapaTiled.getLayers()) {
-                if (layer.getName().equalsIgnoreCase("Portal") || layer.getName().equalsIgnoreCase("Portales")) {
-                    capaPortales = layer;
-                    break;
-                }
-            }
+            String anterior = nombreMapaAnterior.toLowerCase();
+            String actual = this.nombreMapa.toLowerCase();
+            System.out.println("Mapa anterior: " + nombreMapaAnterior);
+            System.out.println("Mapa actual: " + nombreMapa);
 
-            if (capaPortales != null) {
-                for (MapObject obj : capaPortales.getObjects()) {
-                    if (obj instanceof RectangleMapObject) {
-                        String destino = obj.getProperties().get("Destino", String.class);
-                        if (destino != null) {
-                            // Normalizamos quitando .tmx para comparar
-                            String destClean = destino.replace(".tmx", "");
-                            String prevClean = nombreMapaAnterior.replace(".tmx", "");
-
-                            if (destClean.equalsIgnoreCase(prevClean)) {
-                                Rectangle rect = ((RectangleMapObject) obj).getRectangle();
-
-                                float pX = rect.x * UNIT_SCALE;
-                                float pY = rect.y * UNIT_SCALE;
-
-                                spawnX = pX;
-                                spawnY = pY;
-
-                                // Heuristica para no spawnear ENCIMA del portal y volver a teletransportarse
-                                // Si estamos en un borde, nos movemos hacia adentro.
-                                // Si no, por defecto nos movemos hacia abajo (asumiendo puerta vertical).
-                                if (pY < 2) {
-                                    spawnY += 1; // Borde inferior -> Mover Arriba
-                                } else if (pY > altoMapa - 3) {
-                                    spawnY -= 1; // Borde superior -> Mover Abajo
-                                } else if (pX < 2) {
-                                    spawnX += 1; // Borde izquierdo -> Mover Derecha
-                                } else if (pX > anchoMapa - 3) {
-                                    spawnX -= 1; // Borde derecho -> Mover Izquierda
-                                } else {
-                                    spawnY -= 1; // Default: Mover Abajo (Salir de puerta)
-                                }
-
-                                System.out.println("Spawn encontrado hacia: " + destino + " | Offset aplicado");
-                                break; // Encontramos el portal, paramos
-                            }
-                        }
-                    }
-                }
+            if (nombreMapaAnterior.contains("MapaCentro") && nombreMapa.contains("MapaVerdePokemon")) {
+                spawnX = 29f;
+                spawnY = 10f;
+                System.out.println("Regresando del Centro Pokémon. Posicionando en la puerta exterior.");
             }
         }
 
-        // Jugador
+        // Intentamos buscar la capa "Spawn" y el objeto "Entrada"
+        MapLayer capaSpawn = mapaTiled.getLayers().get("Spawn");
+        if (capaSpawn != null) {
+            MapObject puntoEntrada = capaSpawn.getObjects().get("Entrada");
+            if (puntoEntrada != null) {
+                // Leemos las coordenadas en píxeles y las pasamos a unidades de mundo
+                spawnX = (Float) puntoEntrada.getProperties().get("x") * UNIT_SCALE;
+                spawnY = (Float) puntoEntrada.getProperties().get("y") * UNIT_SCALE;
+                System.out.println("Spawn encontrado en 'Entrada': " + spawnX + ", " + spawnY);
+            } else {
+                System.out.println("ADVERTENCIA: No se encontró el objeto 'Entrada' en la capa Spawn.");
+            }
+        } else {
+            System.out.println("ADVERTENCIA: No se encontró la capa 'Spawn'.");
+        }
+
+        // 4. JUGADOR (Actualizar posición)
         this.jugador = game.getJugador();
         if (this.jugador != null) {
+            // Forzamos al jugador a la posición de la puerta
             this.jugador.getPosicion().set(spawnX, spawnY);
             this.jugador.getDestino().set(spawnX, spawnY);
         } else {
             this.jugador = new Player(spawnX, spawnY);
             game.setJugador(this.jugador);
         }
-
-        this.spawnPokemon = new SpawnPokemon();
-        this.sistemaCaptura = new CapturaPokemon(jugador.getInventario());
-
         // Carga de texturas de UI
         pausaSalir = new Texture(Gdx.files.internal("Salir.png"));
         pausaSalirC = new Texture(Gdx.files.internal("SalirC.png"));
@@ -917,10 +968,68 @@ public class Mapa implements Screen {
                 // Reanudar el juego
                 pausado = false;
             } else if (opcionPausa == OPCION_SALIR_MENU) {
-                // Salir al men├║ principal
-                game.setScreen(new MenuPrincipal(game));
-                dispose();
+                // Guardar partida antes de salir al menú principal
+                System.out.println("Seleccionado: Salir al menú principal");
+                guardarPartidaYSalir();
             }
+        }
+    }
+
+    /**
+     * Guarda la partida actual y vuelve al menú principal.
+     */
+    private void guardarPartidaYSalir() {
+        try {
+            // Obtener el Pokémon inicial del jugador
+            Pokemon pokemonInicial = game.getPokemonInicial();
+            if (pokemonInicial == null) {
+                // Fallback si no hay Pokémon inicial
+                pokemonInicial = new PokeFuego.Ignirrojo("Macho");
+            }
+
+            // Limpiar el nombre del mapa: quitar "Tiled/" y extensión ".tmx"
+            String nombreMapaLimpio = nombreMapa;
+            if (nombreMapaLimpio != null) {
+                // Quitar prefijo "Tiled/" si existe
+                if (nombreMapaLimpio.startsWith("Tiled/")) {
+                    nombreMapaLimpio = nombreMapaLimpio.substring(6);
+                }
+                // Quitar extensión ".tmx" si existe
+                if (nombreMapaLimpio.endsWith(".tmx")) {
+                    nombreMapaLimpio = nombreMapaLimpio.substring(0, nombreMapaLimpio.length() - 4);
+                }
+            } else {
+                nombreMapaLimpio = "MapaVerdePokemon"; // Fallback
+            }
+
+            // Guardar la partida
+            boolean guardado = GestorGuardado.guardarPartida(jugador, pokemonInicial, nombreMapaLimpio);
+            if (guardado) {
+                System.out.println("Partida guardada correctamente. Volviendo al menú principal...");
+            } else {
+                System.out.println("Advertencia: No se pudo guardar la partida, pero se continúa con la salida.");
+            }
+
+            // Salir al menú principal
+            System.out.println("Cambiando al menú principal...");
+            // Marcar que estamos saliendo para evitar renderizado adicional
+            saliendoAlMenu = true;
+            // Cambiar la pantalla primero - LibGDX manejará el dispose() automáticamente
+            MenuPrincipal menuPrincipal = new MenuPrincipal(game);
+            game.setScreen(menuPrincipal);
+            System.out.println("Pantalla cambiada al menú principal.");
+            // Llamar hide() manualmente para asegurar que la pantalla actual se oculte
+            hide();
+            // No llamar dispose() aquí - LibGDX lo manejará automáticamente
+        } catch (Exception e) {
+            System.err.println("Error al guardar partida: " + e.getMessage());
+            e.printStackTrace();
+            // Aun así, salir al menú principal
+            System.out.println("Cambiando al menú principal (después de error)...");
+            saliendoAlMenu = true;
+            game.setScreen(new MenuPrincipal(game));
+            hide();
+            // No llamar dispose() aquí - LibGDX lo manejará automáticamente
         }
     }
 
@@ -955,11 +1064,11 @@ public class Mapa implements Screen {
 
         // Boton Reanudar (arriba).
         Texture texReanudar = (opcionPausa == OPCION_REANUDAR) ? pausaVolverC : pausaVolver;
-        game.batch.draw(texReanudar, x, centroY + btnH / 2f + 15, btnW, btnH);
+        game.batch.draw(texReanudar, x, centroY + btnH / 2, btnW, btnH);
 
         // Boton Salir al Men├║ Principal (abajo).
         Texture texSalir = (opcionPausa == OPCION_SALIR_MENU) ? pausaSalirC : pausaSalir;
-        game.batch.draw(texSalir, x, centroY - btnH / 2f - 15, btnW, btnH);
+        game.batch.draw(texSalir, x, centroY - btnH / 2, btnW, btnH);
 
         game.batch.end();
 
@@ -1104,6 +1213,7 @@ public class Mapa implements Screen {
         }
     }
 
+
     private void dibujarSlot(float x, float y, float w, float h, boolean resaltado) {
         Texture tex = resaltado ? marcoSlotC : marcoSlot;
         game.batch.draw(tex, x, y, w, h);
@@ -1118,272 +1228,6 @@ public class Mapa implements Screen {
             menuCrafteoAbierto = true;
             opcionCrafteo = 1;
         }
-    }
-
-    /**
-     * Gestiona la entrada del teclado cuando el men├║ de Pokemon est├í abierto.
-     */
-    private void actualizarEntradaPokemon() {
-        java.util.List<Pokemon> pokemons = sistemaCaptura.getPokemonsCapturados();
-
-        if (pokemons.isEmpty()) {
-            // Si no hay Pokemon, cerrar el menú con cualquier tecla
-            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE) ||
-                    Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
-                menuPokemonAbierto = false;
-            }
-            return;
-        }
-
-        // Navegar con flechas arriba/abajo
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.UP)) {
-            pokemonSeleccionado = (pokemonSeleccionado - 1 + pokemons.size()) % pokemons.size();
-        }
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.DOWN)) {
-            pokemonSeleccionado = (pokemonSeleccionado + 1) % pokemons.size();
-        }
-
-        // Cerrar con ESCAPE o P
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE) ||
-                Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
-            menuPokemonAbierto = false;
-        }
-    }
-
-    /**
-     * Dibuja el men├║ de Pokemon capturados con todas sus especificaciones.
-     */
-    private void dibujarMenuPokemon() {
-        float sw = Gdx.graphics.getWidth();
-        float sh = Gdx.graphics.getHeight();
-
-        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, sw, sh);
-        game.batch.begin();
-
-        // Fondo oscuro semi-transparente
-        game.batch.setColor(0, 0, 0, 0.8f);
-        game.batch.draw(pixel, 0, 0, sw, sh);
-        game.batch.setColor(1, 1, 1, 1);
-
-        java.util.List<Pokemon> pokemons = sistemaCaptura.getPokemonsCapturados();
-
-        // T├¡tulo
-        font.setColor(Color.YELLOW);
-        font.getData().setScale(2.5f);
-        String titulo = "POKEMON CAPTURADOS";
-        com.badlogic.gdx.graphics.g2d.GlyphLayout layoutTitulo = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
-                titulo);
-        font.draw(game.batch, titulo, (sw - layoutTitulo.width) / 2f, sh - 50);
-
-        if (pokemons.isEmpty()) {
-            // Mensaje si no hay Pokemon
-            font.setColor(Color.WHITE);
-            font.getData().setScale(2.0f);
-            String mensaje = "No has capturado ningún Pokemon aún";
-            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutMensaje = new com.badlogic.gdx.graphics.g2d.GlyphLayout(
-                    font, mensaje);
-            font.draw(game.batch, mensaje, (sw - layoutMensaje.width) / 2f, sh / 2f);
-
-            font.getData().setScale(1.5f);
-            String instruccion = "Presiona P o ESCAPE para cerrar";
-            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
-                    instruccion);
-            font.draw(game.batch, instruccion, (sw - layoutInst.width) / 2f, sh / 2f - 60);
-        } else {
-            // ├ürea de lista de Pokemon (izquierda)
-            float listaX = 50;
-            float listaY = sh - 150;
-            float listaW = sw * 0.35f;
-            float listaH = sh - 200;
-            float itemHeight = 60f;
-            int itemsVisibles = (int) (listaH / itemHeight);
-
-            // Fondo de la lista
-            game.batch.setColor(0.15f, 0.15f, 0.15f, 0.9f);
-            game.batch.draw(pixel, listaX, listaY - listaH, listaW, listaH);
-            game.batch.setColor(1, 1, 1, 1);
-
-            // Borde de la lista
-            game.batch.setColor(0.6f, 0.6f, 0.6f, 1f);
-            float bordeGrosor = 3f;
-            game.batch.draw(pixel, listaX, listaY - listaH, listaW, bordeGrosor); // Arriba
-            game.batch.draw(pixel, listaX, listaY - listaH, bordeGrosor, listaH); // Izquierda
-            game.batch.draw(pixel, listaX + listaW - bordeGrosor, listaY - listaH, bordeGrosor, listaH); // Derecha
-            game.batch.draw(pixel, listaX, listaY - listaH - bordeGrosor, listaW, bordeGrosor); // Abajo
-            game.batch.setColor(1, 1, 1, 1);
-
-            // Dibujar lista de Pokemon
-            font.getData().setScale(1.3f);
-            int startIndex = Math.max(0, Math.min(pokemonSeleccionado - itemsVisibles / 2,
-                    Math.max(0, pokemons.size() - itemsVisibles)));
-
-            for (int i = 0; i < itemsVisibles && (startIndex + i) < pokemons.size(); i++) {
-                int index = startIndex + i;
-                Pokemon p = pokemons.get(index);
-                float itemY = listaY - (i * itemHeight) - 30;
-
-                // Resaltar el seleccionado
-                if (index == pokemonSeleccionado) {
-                    game.batch.setColor(0.3f, 0.5f, 0.8f, 0.7f);
-                    game.batch.draw(pixel, listaX + 5, itemY - itemHeight + 5, listaW - 10, itemHeight - 5);
-                    game.batch.setColor(1, 1, 1, 1);
-                }
-
-                // Sprite del Pokemon (pequeño en la lista)
-                Texture spritePokemon = gestorSprites.obtenerSprite(p.getNombre());
-                float spriteSize = itemHeight - 10;
-                float nombreX = listaX + 15;
-                if (spritePokemon != null) {
-                    game.batch.draw(spritePokemon, nombreX, itemY - spriteSize, spriteSize, spriteSize);
-                    nombreX += spriteSize + 10;
-                }
-
-                // Nombre del Pokemon (al lado del sprite)
-                font.setColor(index == pokemonSeleccionado ? Color.YELLOW : Color.WHITE);
-                String nombreTexto = (index + 1) + ". " + p.getNombre();
-                font.draw(game.batch, nombreTexto, nombreX, itemY);
-            }
-
-            // ├ürea de detalles del Pokemon seleccionado (derecha)
-            if (pokemonSeleccionado >= 0 && pokemonSeleccionado < pokemons.size()) {
-                Pokemon p = pokemons.get(pokemonSeleccionado);
-                float detallesX = listaX + listaW + 30;
-                float detallesY = listaY;
-                float detallesW = sw - detallesX - 50;
-                float detallesH = listaH;
-
-                // Fondo de detalles
-                game.batch.setColor(0.2f, 0.2f, 0.2f, 0.9f);
-                game.batch.draw(pixel, detallesX, detallesY - detallesH, detallesW, detallesH);
-                game.batch.setColor(1, 1, 1, 1);
-
-                // Borde de detalles
-                game.batch.setColor(0.8f, 0.8f, 0.8f, 1f);
-                game.batch.draw(pixel, detallesX, detallesY, detallesW, bordeGrosor); // Arriba
-                game.batch.draw(pixel, detallesX, detallesY - detallesH, bordeGrosor, detallesH); // Izquierda
-                game.batch.draw(pixel, detallesX + detallesW - bordeGrosor, detallesY - detallesH, bordeGrosor,
-                        detallesH); // Derecha
-                game.batch.draw(pixel, detallesX, detallesY - detallesH - bordeGrosor, detallesW, bordeGrosor); // Abajo
-                game.batch.setColor(1, 1, 1, 1);
-
-                // Sprite del Pokemon grande (arriba en los detalles)
-                Texture spritePokemon = gestorSprites.obtenerSprite(p.getNombre());
-                if (spritePokemon != null) {
-                    float spriteSize = 250f;
-                    float spriteX = detallesX + (detallesW - spriteSize) / 2f;
-                    float spriteY = detallesY - spriteSize - 40;
-                    game.batch.draw(spritePokemon, spriteX, spriteY, spriteSize, spriteSize);
-                }
-
-                // T├¡tulo de detalles
-                font.setColor(Color.CYAN);
-                font.getData().setScale(2.0f);
-                String detalleTitulo = "ESPECIFICACIONES";
-                com.badlogic.gdx.graphics.g2d.GlyphLayout layoutDetalle = new com.badlogic.gdx.graphics.g2d.GlyphLayout(
-                        font, detalleTitulo);
-                font.draw(game.batch, detalleTitulo, detallesX + (detallesW - layoutDetalle.width) / 2f,
-                        detallesY - 30);
-
-                // Informaci├│n del Pokemon
-                float yPos = detallesY - 350; // Más abajo para dar espacio al sprite
-                font.setColor(Color.WHITE);
-                font.getData().setScale(1.8f);
-
-                // Nombre
-                font.setColor(Color.YELLOW);
-                font.draw(game.batch, "Nombre:", detallesX + 30, yPos);
-                font.setColor(Color.WHITE);
-                font.draw(game.batch, p.getNombre(), detallesX + 200, yPos);
-                yPos -= 50;
-
-                // Tipo
-                font.setColor(Color.YELLOW);
-                font.draw(game.batch, "Tipo:", detallesX + 30, yPos);
-                font.setColor(Color.WHITE);
-                String tipoTexto = p.getTipoString(); // getTipoString() devuelve String
-                font.draw(game.batch, tipoTexto, detallesX + 200, yPos);
-                yPos -= 50;
-
-                // Sexo
-                font.setColor(Color.YELLOW);
-                font.draw(game.batch, "Sexo:", detallesX + 30, yPos);
-                font.setColor(Color.WHITE);
-                font.draw(game.batch, p.getSexo(), detallesX + 200, yPos);
-                yPos -= 50;
-
-                // Peso
-                font.setColor(Color.YELLOW);
-                font.draw(game.batch, "Peso:", detallesX + 30, yPos);
-                font.setColor(Color.WHITE);
-                font.draw(game.batch, String.format("%.2f kg", p.getPeso()), detallesX + 200, yPos);
-                yPos -= 50;
-
-                // Vida
-                font.setColor(Color.YELLOW);
-                font.draw(game.batch, "Vida (PS):", detallesX + 30, yPos);
-                font.setColor(Color.WHITE);
-                String vidaTexto = p.getVida() + " / " + p.getVidaMaxima();
-                font.draw(game.batch, vidaTexto, detallesX + 200, yPos);
-                yPos -= 50;
-
-                // Barra de vida visual
-                float barraX = detallesX + 200;
-                float barraY = yPos - 20;
-                float barraW = 300;
-                float barraH = 25;
-
-                // Fondo de la barra
-                game.batch.setColor(0.3f, 0.3f, 0.3f, 1f);
-                game.batch.draw(pixel, barraX, barraY, barraW, barraH);
-
-                // Barra de vida (verde/amarillo/rojo según porcentaje)
-                float porcentajeVida = (float) p.getVida() / p.getVidaMaxima();
-                if (porcentajeVida > 0.5f) {
-                    game.batch.setColor(0, 1, 0, 1f); // Verde
-                } else if (porcentajeVida > 0.25f) {
-                    game.batch.setColor(1, 1, 0, 1f); // Amarillo
-                } else {
-                    game.batch.setColor(1, 0, 0, 1f); // Rojo
-                }
-                game.batch.draw(pixel, barraX, barraY, barraW * porcentajeVida, barraH);
-                game.batch.setColor(1, 1, 1, 1);
-
-                // Borde de la barra
-                game.batch.setColor(0.8f, 0.8f, 0.8f, 1f);
-                game.batch.draw(pixel, barraX, barraY, barraW, 2); // Arriba
-                game.batch.draw(pixel, barraX, barraY, 2, barraH); // Izquierda
-                game.batch.draw(pixel, barraX + barraW - 2, barraY, 2, barraH); // Derecha
-                game.batch.draw(pixel, barraX, barraY + barraH - 2, barraW, 2); // Abajo
-                game.batch.setColor(1, 1, 1, 1);
-
-                yPos -= 60;
-
-                // Estado
-                font.setColor(Color.YELLOW);
-                font.getData().setScale(1.5f);
-                font.draw(game.batch, "Estado:", detallesX + 30, yPos);
-                font.setColor(p.estaVivo() ? Color.GREEN : Color.RED);
-                font.draw(game.batch, p.estaVivo() ? "Vivo" : "Derrotado", detallesX + 200, yPos);
-            }
-
-            // Instrucciones en la parte inferior
-            font.setColor(Color.LIGHT_GRAY);
-            font.getData().setScale(1.2f);
-            String instrucciones = "↑ ↓: Navegar | P o ESCAPE: Cerrar";
-            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutInst = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
-                    instrucciones);
-            font.draw(game.batch, instrucciones, (sw - layoutInst.width) / 2f, 40);
-
-            // Contador de Pokemon
-            font.setColor(Color.CYAN);
-            String contador = "Total: " + pokemons.size() + " Pokemon";
-            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutCont = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
-                    contador);
-            font.draw(game.batch, contador, sw - layoutCont.width - 30, 40);
-        }
-
-        game.batch.end();
-        game.batch.setProjectionMatrix(camera.combined);
     }
 
     /**
@@ -1507,6 +1351,10 @@ public class Mapa implements Screen {
 
     @Override
     public void resize(int width, int height) {
+        // Verificar que la cámara esté inicializada antes de acceder a ella
+        if (camera == null) {
+            return;
+        }
         // Ajustamos la proporcion de la camara segun el tama├▒o de la ventana.
         float tilesVisibles = 18f;
         camera.viewportWidth = tilesVisibles;
@@ -1763,6 +1611,29 @@ public class Mapa implements Screen {
 
     @Override
     public void show() {
+        // Reproducir música del mapa cuando se muestra la pantalla
+        reproducirMusicaMapa();
+    }
+    
+    /**
+     * Reproduce la música correspondiente al mapa actual.
+     */
+    private void reproducirMusicaMapa() {
+        if (nombreMapa == null) {
+            return;
+        }
+        
+        // Determinar qué música reproducir según el nombre del mapa
+        String nombreMapaLower = nombreMapa.toLowerCase();
+        
+        if (nombreMapaLower.contains("verde") || nombreMapaLower.contains("mapaverdepokemon")) {
+            GestorMusica.reproducirMusica(GestorMusica.TipoMusica.MAPA_VERDE);
+        } else if (nombreMapaLower.contains("azul") || nombreMapaLower.contains("mapaazulpokemon")) {
+            GestorMusica.reproducirMusica(GestorMusica.TipoMusica.MAPA_AZUL);
+        } else {
+            // Por defecto, usar música del mapa verde
+            GestorMusica.reproducirMusica(GestorMusica.TipoMusica.MAPA_VERDE);
+        }
     }
 
     @Override

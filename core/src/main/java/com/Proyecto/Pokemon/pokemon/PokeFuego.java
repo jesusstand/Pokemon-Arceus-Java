@@ -25,7 +25,7 @@ public class PokeFuego extends Pokemon implements IAtaqueFuego {
 
     @Override
     public int lanzallamas(Pokemon objetivo) {
-        int danioBase = (int) (poderFuego * 1.2);
+        int danioBase = (int) (poderFuego * 0.6); // Reducido de 1.2 a 0.6
         double multiplicador = Pokemon.calcularMultiplicador(Tipo.FUEGO, objetivo.getTipo());
         int danio = (int) (danioBase * multiplicador);
         objetivo.recibirDanio(danio);
@@ -34,7 +34,7 @@ public class PokeFuego extends Pokemon implements IAtaqueFuego {
 
     @Override
     public int llamarada(Pokemon objetivo) {
-        int danioBase = (int) (poderFuego * 1.4);
+        int danioBase = (int) (poderFuego * 0.75); // Reducido de 1.4 a 0.75
         double multiplicador = Pokemon.calcularMultiplicador(Tipo.FUEGO, objetivo.getTipo());
         int danio = (int) (danioBase * multiplicador);
         objetivo.recibirDanio(danio);

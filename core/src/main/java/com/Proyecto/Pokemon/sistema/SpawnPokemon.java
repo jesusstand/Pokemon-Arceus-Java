@@ -8,77 +8,161 @@ import com.Proyecto.Pokemon.pokemon.PokeDragon;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.function.Supplier;
 
 /**
  * Clase que gestiona el spawn (aparición) de Pokemon salvajes en la hierba.
  * Genera Pokemon aleatorios cuando el jugador camina sobre tiles de hierba.
+ * Usa un sistema de pesos para controlar la rareza de cada Pokemon.
  */
 public class SpawnPokemon {
+    /**
+     * Clase interna para representar un Pokemon con su peso/raridad.
+     */
+    private static class PokemonConPeso {
+        Pokemon pokemon;
+        double peso; // Mayor peso = más común
+        
+        PokemonConPeso(Pokemon pokemon, double peso) {
+            this.pokemon = pokemon;
+            this.peso = peso;
+        }
+    }
+    
     private Random random;
-
-    // Listas separadas por tipo para asegurar variedad
-    private List<Supplier<Pokemon>> tipoPlanta;
-    private List<Supplier<Pokemon>> tipoFuego;
-    private List<Supplier<Pokemon>> tipoAgua;
-    private List<Supplier<Pokemon>> tipoDragon;
-
-    private static final double PROBABILIDAD_ENCUENTRO = 0.15; // 15% de probabilidad por paso
+    private List<PokemonConPeso> pokemonsConPeso;
+    private double pesoTotal;
+    private static final double PROBABILIDAD_ENCUENTRO = 0.12; // 12% de probabilidad por paso (más equilibrado)
 
     /**
      * Constructor de SpawnPokemon.
-     * Inicializa las listas de Pokemon disponibles para spawn.
+     * Inicializa la lista de Pokemon disponibles para spawn con pesos.
      */
     public SpawnPokemon() {
         this.random = new Random();
-        this.tipoPlanta = new ArrayList<>();
-        this.tipoFuego = new ArrayList<>();
-        this.tipoAgua = new ArrayList<>();
-        this.tipoDragon = new ArrayList<>();
-
+        this.pokemonsConPeso = new ArrayList<>();
+        this.pesoTotal = 0.0;
         inicializarPokemonsDisponibles();
     }
 
     /**
-     * Inicializa las listas de Pokemon que pueden aparecer en la hierba.
-     * Usamos Suppliers (proveedores) para crear nuevas instancias frescas cada vez.
+     * Inicializa la lista de Pokemon que pueden aparecer en la hierba con pesos de raridad.
+     * Mayor peso = más común, menor peso = más raro.
      */
     private void inicializarPokemonsDisponibles() {
-        // Pokemon de tipo Planta
-        tipoPlanta.add(() -> new PokePlanta.Brotalamo("Macho"));
-        tipoPlanta.add(() -> new PokePlanta.Brotalamo("Hembra"));
-        tipoPlanta.add(() -> new PokePlanta.Floravelo("Macho"));
-        tipoPlanta.add(() -> new PokePlanta.Floravelo("Hembra"));
-
-        // Pokemon de tipo Fuego
-        tipoFuego.add(() -> new PokeFuego.Ignirrojo("Macho"));
-        tipoFuego.add(() -> new PokeFuego.Ignirrojo("Hembra"));
-        tipoFuego.add(() -> new PokeFuego.Volcarex("Macho"));
-        tipoFuego.add(() -> new PokeFuego.Volcarex("Hembra"));
-
-        // Pokemon de tipo Agua
-        tipoAgua.add(() -> new PokeAgua.Aqualisca("Macho"));
-        tipoAgua.add(() -> new PokeAgua.Aqualisca("Hembra"));
-        tipoAgua.add(() -> new PokeAgua.Mareonix("Macho"));
-        tipoAgua.add(() -> new PokeAgua.Mareonix("Hembra"));
-
-        // Pokemon de tipo Dragon (más raros)
-        tipoDragon.add(() -> new PokeDragon.Dracornea("Macho"));
-        tipoDragon.add(() -> new PokeDragon.Dracornea("Hembra"));
-        tipoDragon.add(() -> new PokeDragon.Aethergon("Macho"));
-        tipoDragon.add(() -> new PokeDragon.Aethergon("Hembra"));
+        // Pokemon comunes (peso alto) - 40% probabilidad total
+        agregarPokemon(new PokePlanta.Brotalamo("Macho"), 8.0);
+        agregarPokemon(new PokePlanta.Brotalamo("Hembra"), 8.0);
+        agregarPokemon(new PokeFuego.Ignirrojo("Macho"), 7.0);
+        agregarPokemon(new PokeFuego.Ignirrojo("Hembra"), 7.0);
+        agregarPokemon(new PokeAgua.Aqualisca("Macho"), 7.0);
+        agregarPokemon(new PokeAgua.Aqualisca("Hembra"), 7.0);
+        
+        // Pokemon poco comunes (peso medio) - 35% probabilidad total
+        agregarPokemon(new PokePlanta.Floravelo("Macho"), 5.0);
+        agregarPokemon(new PokePlanta.Floravelo("Hembra"), 5.0);
+        agregarPokemon(new PokeFuego.Volcarex("Macho"), 4.5);
+        agregarPokemon(new PokeFuego.Volcarex("Hembra"), 4.5);
+        agregarPokemon(new PokeAgua.Mareonix("Macho"), 4.5);
+        agregarPokemon(new PokeAgua.Mareonix("Hembra"), 4.5);
+        
+        // Pokemon raros (peso bajo) - 20% probabilidad total
+        agregarPokemon(new PokeDragon.Dracornea("Macho"), 2.0);
+        agregarPokemon(new PokeDragon.Dracornea("Hembra"), 2.0);
+        
+        // Pokemon muy raros (peso muy bajo) - 5% probabilidad total
+        agregarPokemon(new PokeDragon.Aethergon("Macho"), 0.8);
+        agregarPokemon(new PokeDragon.Aethergon("Hembra"), 0.8);
+    }
+    
+    /**
+     * Agrega un Pokemon con su peso a la lista de disponibles.
+     */
+    private void agregarPokemon(Pokemon pokemon, double peso) {
+        pokemonsConPeso.add(new PokemonConPeso(pokemon, peso));
+        pesoTotal += peso;
     }
 
     /**
      * Verifica si debe aparecer un Pokemon salvaje al caminar sobre hierba.
+     * Usa un sistema de pesos para determinar qué Pokemon aparece.
      *
      * @return Pokemon salvaje si hay encuentro, null si no hay encuentro.
      */
     public Pokemon verificarEncuentro() {
+        // Verificar si hay encuentro basado en probabilidad
         if (random.nextDouble() < PROBABILIDAD_ENCUENTRO) {
-            return obtenerPokemonAleatorio();
+            // Seleccionar Pokemon basado en pesos (sistema de raridad)
+            Pokemon pokemonBase = seleccionarPokemonConPeso();
+            
+            // Crear una nueva instancia del Pokemon (clonar)
+            return crearInstanciaPokemon(pokemonBase);
         }
         return null;
+    }
+    
+    /**
+     * Selecciona un Pokemon aleatorio basado en su peso/raridad.
+     * Pokemon con mayor peso tienen más probabilidad de aparecer.
+     *
+     * @return Pokemon seleccionado según su peso.
+     */
+    private Pokemon seleccionarPokemonConPeso() {
+        // Generar un número aleatorio entre 0 y pesoTotal
+        double valorAleatorio = random.nextDouble() * pesoTotal;
+        
+        // Recorrer la lista hasta encontrar el Pokemon correspondiente
+        double acumulado = 0.0;
+        for (PokemonConPeso pcp : pokemonsConPeso) {
+            acumulado += pcp.peso;
+            if (valorAleatorio <= acumulado) {
+                return pcp.pokemon;
+            }
+        }
+        
+        // Fallback: devolver el último Pokemon (no debería llegar aquí)
+        return pokemonsConPeso.get(pokemonsConPeso.size() - 1).pokemon;
+    }
+
+    /**
+     * Crea una nueva instancia de un Pokemon basado en otro.
+     * Esto asegura que cada encuentro sea independiente.
+     *
+     * @param original Pokemon original del cual crear una copia.
+     * @return Nueva instancia del Pokemon con vida completa.
+     */
+    private Pokemon crearInstanciaPokemon(Pokemon original) {
+        String nombre = original.getNombre();
+        String sexo = original.getSexo();
+
+        // Crear nueva instancia según el tipo
+        if (original instanceof PokePlanta) {
+            if (nombre.equals("Brotálamo")) {
+                return new PokePlanta.Brotalamo(sexo);
+            } else if (nombre.equals("Floravelo")) {
+                return new PokePlanta.Floravelo(sexo);
+            }
+        } else if (original instanceof PokeFuego) {
+            if (nombre.equals("Ignirrojo")) {
+                return new PokeFuego.Ignirrojo(sexo);
+            } else if (nombre.equals("Volcárex")) {
+                return new PokeFuego.Volcarex(sexo);
+            }
+        } else if (original instanceof PokeAgua) {
+            if (nombre.equals("Aqualisca")) {
+                return new PokeAgua.Aqualisca(sexo);
+            } else if (nombre.equals("Mareónix")) {
+                return new PokeAgua.Mareonix(sexo);
+            }
+        } else if (original instanceof PokeDragon) {
+            if (nombre.equals("Dracórnea")) {
+                return new PokeDragon.Dracornea(sexo);
+            } else if (nombre.equals("Aethergon")) {
+                return new PokeDragon.Aethergon(sexo);
+            }
+        }
+
+        // Fallback (no debería llegar aquí)
+        return original;
     }
 
     /**
@@ -88,41 +172,5 @@ public class SpawnPokemon {
      */
     public double getProbabilidadEncuentro() {
         return PROBABILIDAD_ENCUENTRO;
-    }
-
-    /**
-     * Obtiene un Pokemon aleatorio asegurando variedad de tipos.
-     * 1. Elige un tipo al azar.
-     * 2. Elige un Pokemon al azar de ese tipo.
-     *
-     * @return Una nueva instancia de un Pokemon aleatorio.
-     */
-    public Pokemon obtenerPokemonAleatorio() {
-        // 1. Elegir tipo (0=Planta, 1=Fuego, 2=Agua)
-        int tipoSeleccionado = random.nextInt(3);
-        List<Supplier<Pokemon>> listaElegida;
-
-        switch (tipoSeleccionado) {
-            case 0:
-                listaElegida = tipoPlanta;
-                break;
-            case 1:
-                listaElegida = tipoFuego;
-                break;
-            case 2:
-                listaElegida = tipoAgua;
-                break;
-            default:
-                listaElegida = tipoPlanta;
-                break; // Fallback seguro
-        }
-        // 2. Elegir un proveedor de la lista y crear la instancia
-        if (!listaElegida.isEmpty()) {
-            int indice = random.nextInt(listaElegida.size());
-            return listaElegida.get(indice).get();
-        }
-
-        // Fallback de seguridad
-        return new PokePlanta.Brotalamo("Salvaje");
     }
 }

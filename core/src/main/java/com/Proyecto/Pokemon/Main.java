@@ -20,6 +20,10 @@ public class Main extends Game {
     public SpriteBatch batch;
     private Player jugador;
     private Pokemon pokemonInicial;
+    
+    // Sistema de rastreo de pokémons legendarios derrotados
+    private boolean dracorneaDerrotado = false;
+    private boolean aethergonDerrotado = false;
 
     @Override
     public void create() {
@@ -51,6 +55,41 @@ public class Main extends Game {
 
     public void setPokemonInicial(Pokemon pokemon) {
         this.pokemonInicial = pokemon;
+    }
+    
+    /**
+     * Marca un Pokemon legendario como derrotado.
+     * @param nombre Nombre del Pokemon legendario derrotado.
+     */
+    public void marcarLegendarioDerrotado(String nombre) {
+        if (nombre.equals("Dracórnea") || nombre.equals("Dracornea")) {
+            dracorneaDerrotado = true;
+            System.out.println("¡Dracornea derrotado!");
+        } else if (nombre.equals("Aethergon")) {
+            aethergonDerrotado = true;
+            System.out.println("¡Aethergon derrotado!");
+        }
+        
+        // Si ambos pokémons legendarios han sido derrotados, el juego está completo
+        if (dracorneaDerrotado && aethergonDerrotado) {
+            System.out.println("¡HAS COMPLETADO EL JUEGO! ¡Has derrotado a ambos pokémons legendarios!");
+        }
+    }
+    
+    /**
+     * Verifica si ambos pokémons legendarios han sido derrotados.
+     * @return true si ambos han sido derrotados, false en caso contrario.
+     */
+    public boolean esJuegoCompleto() {
+        return dracorneaDerrotado && aethergonDerrotado;
+    }
+    
+    public boolean isDracorneaDerrotado() {
+        return dracorneaDerrotado;
+    }
+    
+    public boolean isAethergonDerrotado() {
+        return aethergonDerrotado;
     }
 
     @Override
