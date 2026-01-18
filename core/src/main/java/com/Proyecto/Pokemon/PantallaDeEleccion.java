@@ -5,6 +5,7 @@ import com.Proyecto.Pokemon.pokemon.PokeFuego;
 import com.Proyecto.Pokemon.pokemon.PokeAgua;
 import com.Proyecto.Pokemon.pokemon.PokePlanta;
 import com.Proyecto.Pokemon.gui.Mapa;
+import com.Proyecto.Pokemon.jugador.Player;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
@@ -141,9 +142,76 @@ public class PantallaDeEleccion implements Screen {
         }
         game.setPokemonInicial(seleccionado);
 
+        // Resetear el jugador para nueva partida (posición inicial y inventario limpio)
+        Player jugador = game.getJugador();
+        if (jugador != null) {
+            // Resetear posición a la inicial (10, 10)
+            jugador.getPosicion().set(10, 10);
+            jugador.getDestino().set(10, 10);
+            // Limpiar inventario para nueva partida
+            jugador.getInventario().getMapa().clear();
+            
+            // Agregar el Pokemon inicial a la lista de capturados (equipo/mochila)
+            try {
+                jugador.getSistemaCaptura().getPokemonsCapturados().clear(); // Limpiar lista de capturados
+                // Crear una copia del Pokemon seleccionado y agregarlo
+                Pokemon copiaPokemon = crearCopiaPokemon(seleccionado);
+                jugador.getSistemaCaptura().getPokemonsCapturados().add(copiaPokemon);
+                System.out.println("¡" + copiaPokemon.getNombre() + " ha sido agregado a tu equipo!");
+            } catch (Exception e) {
+                System.err.println("Error al agregar Pokemon inicial al equipo: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            // Si no existe jugador, crear uno nuevo
+            jugador = new Player(10, 10);
+            game.setJugador(jugador);
+            
+            // Agregar el Pokemon inicial al equipo
+            try {
+                Pokemon copiaPokemon = crearCopiaPokemon(seleccionado);
+                jugador.getSistemaCaptura().getPokemonsCapturados().add(copiaPokemon);
+                System.out.println("¡" + copiaPokemon.getNombre() + " ha sido agregado a tu equipo!");
+            } catch (Exception e) {
+                System.err.println("Error al agregar Pokemon inicial al equipo: " + e.getMessage());
+            }
+        }
+
         // Cargar el mapa
-        game.setScreen(new Mapa(game, "MapaVerdePokemon.tmx"));
+        game.setScreen(new Mapa(game, "Tiled/MapaVerdePokemon.tmx"));
         dispose();
+    }
+    
+    /**
+     * Crea una copia del Pokemon seleccionado para agregarlo al equipo.
+     */
+    private Pokemon crearCopiaPokemon(Pokemon original) {
+        String nombre = original.getNombre();
+        String sexo = original.getSexo();
+        
+        // Crear nueva instancia según el tipo
+        if (original instanceof PokeFuego) {
+            if (nombre.equals("Ignirrojo")) {
+                return new PokeFuego.Ignirrojo(sexo);
+            } else if (nombre.equals("Volcárex") || nombre.equals("Volcarex")) {
+                return new PokeFuego.Volcarex(sexo);
+            }
+        } else if (original instanceof PokeAgua) {
+            if (nombre.equals("Aqualisca")) {
+                return new PokeAgua.Aqualisca(sexo);
+            } else if (nombre.equals("Mareónix") || nombre.equals("Mareonix")) {
+                return new PokeAgua.Mareonix(sexo);
+            }
+        } else if (original instanceof PokePlanta) {
+            if (nombre.equals("Brotálamo") || nombre.equals("Brotalamo")) {
+                return new PokePlanta.Brotalamo(sexo);
+            } else if (nombre.equals("Floravelo")) {
+                return new PokePlanta.Floravelo(sexo);
+            }
+        }
+        
+        // Fallback: devolver el original si no se encuentra
+        return original;
     }
 
     @Override

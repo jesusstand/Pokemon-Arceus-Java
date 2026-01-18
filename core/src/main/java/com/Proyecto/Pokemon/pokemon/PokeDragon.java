@@ -25,7 +25,7 @@ public class PokeDragon extends Pokemon implements IAtaqueDragon {
 
     @Override
     public int rayoDraconico(Pokemon objetivo) {
-        int danioBase = (int) (poderDragon * 1.5);
+        int danioBase = (int) (poderDragon * 0.8); // Reducido de 1.5 a 0.8
         double multiplicador = Pokemon.calcularMultiplicador(Tipo.DRAGON, objetivo.getTipo());
         int danio = (int) (danioBase * multiplicador);
         objetivo.recibirDanio(danio);
@@ -34,7 +34,7 @@ public class PokeDragon extends Pokemon implements IAtaqueDragon {
 
     @Override
     public int colaDragon(Pokemon objetivo) {
-        int danioBase = (int) (poderDragon * 1.1);
+        int danioBase = (int) (poderDragon * 0.55); // Reducido de 1.1 a 0.55
         double multiplicador = Pokemon.calcularMultiplicador(Tipo.DRAGON, objetivo.getTipo());
         int danio = (int) (danioBase * multiplicador);
         objetivo.recibirDanio(danio);

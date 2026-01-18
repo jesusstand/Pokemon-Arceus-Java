@@ -14,65 +14,112 @@ import java.util.Random;
  * Genera Pokemon aleatorios cuando el jugador camina sobre tiles de hierba.
  */
 public class SpawnPokemon {
+    /**
+     * Clase interna para representar un Pokemon con su peso/raridad.
+     */
+    private static class PokemonConPeso {
+        Pokemon pokemon;
+        double peso; // Mayor peso = más común
+        
+        PokemonConPeso(Pokemon pokemon, double peso) {
+            this.pokemon = pokemon;
+            this.peso = peso;
+        }
+    }
+    
     private Random random;
-    private List<Pokemon> pokemonsDisponibles;
-    private static final double PROBABILIDAD_ENCUENTRO = 0.15; // 15% de probabilidad por paso
+    private List<PokemonConPeso> pokemonsConPeso;
+    private double pesoTotal;
+    private static final double PROBABILIDAD_ENCUENTRO = 0.12; // 12% de probabilidad por paso (más equilibrado)
 
     /**
      * Constructor de SpawnPokemon.
-     * Inicializa la lista de Pokemon disponibles para spawn.
+     * Inicializa la lista de Pokemon disponibles para spawn con pesos.
      */
     public SpawnPokemon() {
         this.random = new Random();
-        this.pokemonsDisponibles = new ArrayList<>();
+        this.pokemonsConPeso = new ArrayList<>();
+        this.pesoTotal = 0.0;
         inicializarPokemonsDisponibles();
     }
 
     /**
-     * Inicializa la lista de Pokemon que pueden aparecer en la hierba.
-     * Aquí puedes agregar todos los Pokemon que quieras que aparezcan.
+     * Inicializa la lista de Pokemon que pueden aparecer en la hierba con pesos de raridad.
+     * Mayor peso = más común, menor peso = más raro.
      */
     private void inicializarPokemonsDisponibles() {
-        // Pokemon de tipo Planta
-        pokemonsDisponibles.add(new PokePlanta.Brotalamo("Macho"));
-        pokemonsDisponibles.add(new PokePlanta.Brotalamo("Hembra"));
-        pokemonsDisponibles.add(new PokePlanta.Floravelo("Macho"));
-        pokemonsDisponibles.add(new PokePlanta.Floravelo("Hembra"));
-
-        // Pokemon de tipo Fuego
-        pokemonsDisponibles.add(new PokeFuego.Ignirrojo("Macho"));
-        pokemonsDisponibles.add(new PokeFuego.Ignirrojo("Hembra"));
-        pokemonsDisponibles.add(new PokeFuego.Volcarex("Macho"));
-        pokemonsDisponibles.add(new PokeFuego.Volcarex("Hembra"));
-
-        // Pokemon de tipo Agua
-        pokemonsDisponibles.add(new PokeAgua.Aqualisca("Macho"));
-        pokemonsDisponibles.add(new PokeAgua.Aqualisca("Hembra"));
-        pokemonsDisponibles.add(new PokeAgua.Mareonix("Macho"));
-        pokemonsDisponibles.add(new PokeAgua.Mareonix("Hembra"));
-
-        // Pokemon de tipo Dragon (más raros)
-        pokemonsDisponibles.add(new PokeDragon.Dracornea("Macho"));
-        pokemonsDisponibles.add(new PokeDragon.Dracornea("Hembra"));
-        pokemonsDisponibles.add(new PokeDragon.Aethergon("Macho"));
-        pokemonsDisponibles.add(new PokeDragon.Aethergon("Hembra"));
+        // Pokemon comunes (peso alto) - 40% probabilidad total
+        agregarPokemon(new PokePlanta.Brotalamo("Macho"), 8.0);
+        agregarPokemon(new PokePlanta.Brotalamo("Hembra"), 8.0);
+        agregarPokemon(new PokeFuego.Ignirrojo("Macho"), 7.0);
+        agregarPokemon(new PokeFuego.Ignirrojo("Hembra"), 7.0);
+        agregarPokemon(new PokeAgua.Aqualisca("Macho"), 7.0);
+        agregarPokemon(new PokeAgua.Aqualisca("Hembra"), 7.0);
+        
+        // Pokemon poco comunes (peso medio) - 35% probabilidad total
+        agregarPokemon(new PokePlanta.Floravelo("Macho"), 5.0);
+        agregarPokemon(new PokePlanta.Floravelo("Hembra"), 5.0);
+        agregarPokemon(new PokeFuego.Volcarex("Macho"), 4.5);
+        agregarPokemon(new PokeFuego.Volcarex("Hembra"), 4.5);
+        agregarPokemon(new PokeAgua.Mareonix("Macho"), 4.5);
+        agregarPokemon(new PokeAgua.Mareonix("Hembra"), 4.5);
+        
+        // Pokemon raros (peso bajo) - 20% probabilidad total
+        agregarPokemon(new PokeDragon.Dracornea("Macho"), 2.0);
+        agregarPokemon(new PokeDragon.Dracornea("Hembra"), 2.0);
+        
+        // Pokemon muy raros (peso muy bajo) - 5% probabilidad total
+        agregarPokemon(new PokeDragon.Aethergon("Macho"), 0.8);
+        agregarPokemon(new PokeDragon.Aethergon("Hembra"), 0.8);
+    }
+    
+    /**
+     * Agrega un Pokemon con su peso a la lista de disponibles.
+     */
+    private void agregarPokemon(Pokemon pokemon, double peso) {
+        pokemonsConPeso.add(new PokemonConPeso(pokemon, peso));
+        pesoTotal += peso;
     }
 
     /**
      * Verifica si debe aparecer un Pokemon salvaje al caminar sobre hierba.
+     * Usa un sistema de pesos para determinar qué Pokemon aparece.
      *
      * @return Pokemon salvaje si hay encuentro, null si no hay encuentro.
      */
     public Pokemon verificarEncuentro() {
+        // Verificar si hay encuentro basado en probabilidad
         if (random.nextDouble() < PROBABILIDAD_ENCUENTRO) {
-            // Seleccionar un Pokemon aleatorio de la lista
-            int indice = random.nextInt(pokemonsDisponibles.size());
-            Pokemon pokemonBase = pokemonsDisponibles.get(indice);
+            // Seleccionar Pokemon basado en pesos (sistema de raridad)
+            Pokemon pokemonBase = seleccionarPokemonConPeso();
             
             // Crear una nueva instancia del Pokemon (clonar)
             return crearInstanciaPokemon(pokemonBase);
         }
         return null;
+    }
+    
+    /**
+     * Selecciona un Pokemon aleatorio basado en su peso/raridad.
+     * Pokemon con mayor peso tienen más probabilidad de aparecer.
+     *
+     * @return Pokemon seleccionado según su peso.
+     */
+    private Pokemon seleccionarPokemonConPeso() {
+        // Generar un número aleatorio entre 0 y pesoTotal
+        double valorAleatorio = random.nextDouble() * pesoTotal;
+        
+        // Recorrer la lista hasta encontrar el Pokemon correspondiente
+        double acumulado = 0.0;
+        for (PokemonConPeso pcp : pokemonsConPeso) {
+            acumulado += pcp.peso;
+            if (valorAleatorio <= acumulado) {
+                return pcp.pokemon;
+            }
+        }
+        
+        // Fallback: devolver el último Pokemon (no debería llegar aquí)
+        return pokemonsConPeso.get(pokemonsConPeso.size() - 1).pokemon;
     }
 
     /**

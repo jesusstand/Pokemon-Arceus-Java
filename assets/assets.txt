@@ -54,8 +54,6 @@ Ignirrojo_Atras_2.png
 Ignirrojo_Frente_0.png
 Ignirrojo_Frente_1.png
 Ignirrojo_Frente_2.png
-MapaAzulPokemon.tmx
-MapaVerdePokemon.tmx
 Marco 8bit Goma.png
 Marco 8bit Madera.png
 Marco 8bit Plastico.png
@@ -72,7 +70,11 @@ Mareónix_Frente_1.png
 Mareónix_Frente_2.png
 Multiplayer.png
 MultiplayerC.png
-NPC.tsx
+Musica/AzulM.mp3
+Musica/BatallaM.mp3
+Musica/GanadorM.mp3
+Musica/MenuM.mp3
+Musica/VerdeM.mp3
 Opciones.png
 OpcionesC.png
 PartidaIndividual.png
@@ -80,17 +82,24 @@ PartidaIndividualC.png
 PokeCura.png
 PokeExp.png
 Pokeball.png
-PokebolaVerde.tsx
 PokemonEleccion.png
 Pokepausa.png
 Ponyta.png
 Salir.png
 SalirC.png
 Seel.png
-TexturasVerde.tsx
 TileSets/Personajes.png
 TileSets/PokebolasTiled.png
 TileSets/TilesetPokemon.png
+Tiled/LEEME_PRIMERO.txt
+Tiled/MapaAzulPokemon.tmx
+Tiled/MapaVerdePokemon.tmx
+Tiled/NPC.tsx
+Tiled/PokebolaVerde.tsx
+Tiled/TexturasVerde.tsx
+Tiled/TileSets/Personajes.png
+Tiled/TileSets/PokebolasTiled.png
+Tiled/TileSets/TilesetPokemon.png
 Volcárex_Atras_0.png
 Volcárex_Atras_1.png
 Volcárex_Atras_2.png
