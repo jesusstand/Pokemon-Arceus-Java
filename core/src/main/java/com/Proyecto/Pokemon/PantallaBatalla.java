@@ -105,8 +105,27 @@ public class PantallaBatalla implements Screen {
         botonHuir = new Texture(Gdx.files.internal("Boton Huir.png"));
         botonHuirActivo = new Texture(Gdx.files.internal("Boton Huir activo.png"));
 
-        spriteJugador = cargarSpritePara(pokemonJugador);
-        spriteRival = cargarSpritePara(pokemonRival);
+        // Usar GestorSpritesPokemon para cargar los sprites correctos según el nombre
+        gestorSprites = new com.Proyecto.Pokemon.gui.GestorSpritesPokemon();
+        spriteJugador = gestorSprites.obtenerSpriteAtras(pokemonJugador.getNombre(), 0);
+        spriteRival = gestorSprites.obtenerSpriteFrente(pokemonRival.getNombre(), 0);
+
+        // Fallbacks por si el gestor falla (aunque el gestor imprime errores)
+        if (spriteJugador == null) {
+            // Textura por defecto o error (rosa/negra)
+            com.badlogic.gdx.graphics.Pixmap p = new com.badlogic.gdx.graphics.Pixmap(32, 32,
+                    com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+            p.setColor(Color.MAGENTA);
+            p.fill();
+            spriteJugador = new Texture(p);
+        }
+        if (spriteRival == null) {
+            com.badlogic.gdx.graphics.Pixmap p = new com.badlogic.gdx.graphics.Pixmap(32, 32,
+                    com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+            p.setColor(Color.RED);
+            p.fill();
+            spriteRival = new Texture(p);
+        }
 
         font = new BitmapFont();
         font.setColor(Color.WHITE);
@@ -116,18 +135,9 @@ public class PantallaBatalla implements Screen {
         fontPequeña.setColor(Color.WHITE);
         fontPequeña.getData().setScale(1.2f);
     }
-
-    private Texture cargarSpritePara(Pokemon p) {
-        // Mapeo simple basado en los assets disponibles
-        if (p instanceof PokeFuego)
-            return new Texture(Gdx.files.internal("Ponyta.png"));
-        if (p instanceof PokeAgua)
-            return new Texture(Gdx.files.internal("Seel.png"));
-        if (p instanceof PokePlanta)
-            return new Texture(Gdx.files.internal("Bulbasaur.png"));
-
-        return new Texture(Gdx.files.internal("Bulbasaur.png"));
-    }
+    
+    // Gestor de sprites (mejora del remoto)
+    private com.Proyecto.Pokemon.gui.GestorSpritesPokemon gestorSprites;
     
     private void inicializarAtaquesDisponibles() {
         ataquesDisponibles = new ArrayList<>();
@@ -538,11 +548,19 @@ public class PantallaBatalla implements Screen {
         batalla.cambiarPokemonJugador(nuevoPokemon);
         inicializarAtaquesDisponibles();
         
-        // Recargar sprite del pokemon
-        if (spriteJugador != null) {
-            spriteJugador.dispose();
+        // Recargar sprite del pokemon usando GestorSpritesPokemon
+        if (spriteJugador != null && gestorSprites != null) {
+            // El gestor maneja la liberación de recursos
+            spriteJugador = gestorSprites.obtenerSpriteAtras(nuevoPokemon.getNombre(), 0);
+            if (spriteJugador == null) {
+                // Fallback si el gestor falla
+                com.badlogic.gdx.graphics.Pixmap p = new com.badlogic.gdx.graphics.Pixmap(32, 32,
+                        com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+                p.setColor(Color.MAGENTA);
+                p.fill();
+                spriteJugador = new Texture(p);
+            }
         }
-        spriteJugador = cargarSpritePara(pokemonJugador);
         
         mensajeLog = "¡Has cambiado a " + nuevoPokemon.getNombre() + "!";
     }
@@ -649,12 +667,20 @@ public class PantallaBatalla implements Screen {
         botonMochilaActivo.dispose();
         botonEquipo.dispose();
         botonEquipoActivo.dispose();
+        
+        // Liberar recursos del gestor de sprites (maneja los sprites principales)
+        if (gestorSprites != null) {
+            gestorSprites.dispose();
+        }
+        // Los fallbacks se crean como texturas nuevas y deben ser liberados manualmente
+        // pero por simplicidad, el Gestor maneja los principales
         if (spriteJugador != null) {
             spriteJugador.dispose();
         }
         if (spriteRival != null) {
             spriteRival.dispose();
         }
+        
         font.dispose();
         fontPequeña.dispose();
     }

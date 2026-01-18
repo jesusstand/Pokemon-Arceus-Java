@@ -1,0 +1,92 @@
+================================================================================
+ARCHIVOS NECESARIOS PARA ABRIR LOS MAPAS EN TILED
+================================================================================
+
+📍 UBICACIÓN: Carpeta 'assets/' del proyecto
+
+================================================================================
+📂 ARCHIVOS PRINCIPALES DEL MAPA (.tmx)
+================================================================================
+
+✅ MapaVerdePokemon.tmx
+✅ MapaAzulPokemon.tmx
+
+   Estos son los archivos de mapas que debes abrir en Tiled.
+
+================================================================================
+📂 TILESETS (.tsx) - Deben estar en 'assets/'
+================================================================================
+
+✅ TexturasVerde.tsx
+   └── Referencia: TileSets/TilesetPokemon.png
+
+✅ PokebolaVerde.tsx  
+   └── Referencia: TileSets/PokebolasTiled.png
+
+✅ NPC.tsx
+   └── Referencia: TileSets/Personajes.png
+
+================================================================================
+📂 IMÁGENES DE TILESETS - Deben estar en 'assets/TileSets/'
+================================================================================
+
+✅ TileSets/TilesetPokemon.png
+   └── Usado por: TexturasVerde.tsx
+
+✅ TileSets/PokebolasTiled.png
+   └── Usado por: PokebolaVerde.tsx
+
+✅ TileSets/Personajes.png
+   └── Usado por: NPC.tsx
+
+================================================================================
+📋 CHECKLIST - Verifica que tengas estos archivos antes de abrir
+================================================================================
+
+[ ] assets/MapaVerdePokemon.tmx
+[ ] assets/MapaAzulPokemon.tmx
+[ ] assets/TexturasVerde.tsx
+[ ] assets/PokebolaVerde.tsx
+[ ] assets/NPC.tsx
+[ ] assets/TileSets/TilesetPokemon.png
+[ ] assets/TileSets/PokebolasTiled.png
+[ ] assets/TileSets/Personajes.png
+
+================================================================================
+🚀 PASOS RÁPIDOS PARA ABRIR
+================================================================================
+
+1. Abre Tiled Map Editor
+2. File → Open File... (Ctrl+O)
+3. Navega a la carpeta: Pokemon-Arceus-Java/assets/
+4. Selecciona: MapaVerdePokemon.tmx o MapaAzulPokemon.tmx
+5. ¡Listo! El mapa debería cargar automáticamente
+
+================================================================================
+📂 ESTRUCTURA COMPLETA
+================================================================================
+
+assets/
+├── MapaVerdePokemon.tmx      ← ABRE ESTE EN TILED
+├── MapaAzulPokemon.tmx       ← O ESTE
+│
+├── TexturasVerde.tsx         ← Tileset principal
+├── PokebolaVerde.tsx         ← Tileset de pokebolas
+├── NPC.tsx                   ← Tileset de NPCs
+│
+└── TileSets/                 ← Carpeta con imágenes
+    ├── TilesetPokemon.png
+    ├── PokebolasTiled.png
+    └── Personajes.png
+
+================================================================================
+⚠️ NOTA IMPORTANTE
+================================================================================
+
+Los archivos .tsx y las imágenes PNG deben estar en estas ubicaciones
+EXACTAS para que Tiled los encuentre automáticamente.
+
+Las rutas en los archivos .tsx son relativas, por lo que la estructura
+de carpetas debe mantenerse tal como está.
+
+================================================================================

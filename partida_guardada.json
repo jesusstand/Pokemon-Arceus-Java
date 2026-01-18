@@ -1,0 +1,12 @@
+{
+"posicionX": 10,
+"posicionY": 14,
+"inventario": {
+	"PokeballEXP": 0,
+	"PokeballCura": 0
+},
+"nombrePokemon": "Ignirrojo",
+"tipoPokemon": "FUEGO",
+"generoPokemon": "Macho",
+"mapaActual": "MapaVerdePokemon"
+}

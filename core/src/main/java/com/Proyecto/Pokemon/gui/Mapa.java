@@ -6,7 +6,6 @@ import com.Proyecto.Pokemon.PantallaBatalla;
 import com.Proyecto.Pokemon.PantallaPokemonCapturados;
 import com.Proyecto.Pokemon.jugador.Player;
 import com.Proyecto.Pokemon.pokemon.Pokemon;
-import com.Proyecto.Pokemon.pokemon.PokePlanta;
 import com.Proyecto.Pokemon.pokemon.PokeFuego;
 import com.Proyecto.Pokemon.sistema.SpawnPokemon;
 import com.Proyecto.Pokemon.sistema.CapturaPokemon;
@@ -64,6 +63,7 @@ public class Mapa implements Screen {
     private boolean menuCrafteoAbierto = false;
     private int opcionCrafteo = 1; // 0, 1, 2
     // --- ESTADO POKEMON CAPTURADOS ---
+    // Nota: Ahora usamos PantallaPokemonCapturados en lugar de un menú interno
     private Texture marcoCrafteoSeleccionado;
     private Texture marcoCrafteoNoSeleccionado;
     private Texture pausaSalir, pausaSalirC, pausaVolver, pausaVolverC, pausaOpciones, pausaOpcionesC, pausaPokepausa;
@@ -244,7 +244,7 @@ public class Mapa implements Screen {
      * @param y Coordenada Y del jugador.
      */
     public void revisarPortales(float x, float y) {
-        // Buscamos la capa de portales de forma m├ís flexible (insensible a may├║sculas).
+        // Buscamos la capa de portales de forma más flexible (insensible a mayúsculas).
         MapLayer capaObjetos = null;
         for (MapLayer layer : mapaTiled.getLayers()) {
             if (layer.getName().equalsIgnoreCase("Portal") || layer.getName().equalsIgnoreCase("Portales")) {
@@ -330,13 +330,11 @@ public class Mapa implements Screen {
                 grassTimer = 0;
 
                 // Iniciar Batalla
-                // Crear un pokemon rival aleatorio (usando SpawnPokemon que ya existe en esta
-                // clase)
+                // Crear un pokemon rival aleatorio (usando SpawnPokemon que ya existe en esta clase)
                 Pokemon rival = spawnPokemon.verificarEncuentro();
                 if (rival == null) {
-                    // Fallback si spawn devuelve null (aunque verificamos encuentro forzado por
-                    // tiempo)
-                    rival = new PokePlanta.Brotalamo("Salvaje");
+                    // Si no hay encuentro, usar un pokemon por defecto
+                    rival = new PokeFuego.Ignirrojo("Macho");
                 }
 
                 // Obtener pokemon del jugador
@@ -948,7 +946,7 @@ public class Mapa implements Screen {
                 // Reanudar el juego
                 pausado = false;
             } else if (opcionPausa == OPCION_SALIR_MENU) {
-                // Guardar partida antes de salir
+                // Guardar partida antes de salir al menú principal
                 System.out.println("Seleccionado: Salir al menú principal");
                 guardarPartidaYSalir();
             }
@@ -1208,7 +1206,6 @@ public class Mapa implements Screen {
             opcionCrafteo = 1;
         }
     }
-
 
     /**
      * Gestiona la entrada del teclado cuando hay un encuentro con Pokemon.

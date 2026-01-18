@@ -12,6 +12,7 @@ import java.util.Random;
 /**
  * Clase que gestiona el spawn (aparición) de Pokemon salvajes en la hierba.
  * Genera Pokemon aleatorios cuando el jugador camina sobre tiles de hierba.
+ * Usa un sistema de pesos para controlar la rareza de cada Pokemon.
  */
 public class SpawnPokemon {
     /**
