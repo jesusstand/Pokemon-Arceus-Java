@@ -1,9 +1,10 @@
 {
 "posicionX": 10,
-"posicionY": 14,
+"posicionY": 12,
 "inventario": {
-	"PokeballEXP": 0,
-	"PokeballCura": 0
+	"PokeballEXP": 1,
+	"PokeballCura": 0,
+	"Madera": 1
 },
 "nombrePokemon": "Ignirrojo",
 "tipoPokemon": "FUEGO",
