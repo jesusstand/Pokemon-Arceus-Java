@@ -25,7 +25,7 @@ public class PokeAgua extends Pokemon implements IAtaqueAgua {
 
     @Override
     public int hidrochorro(Pokemon objetivo) {
-        int danioBase = (int) (poderAgua * 1.2);
+        int danioBase = (int) (poderAgua * 0.6); // Reducido de 1.2 a 0.6
         double multiplicador = Pokemon.calcularMultiplicador(Tipo.AGUA, objetivo.getTipo());
         int danio = (int) (danioBase * multiplicador);
         objetivo.recibirDanio(danio);
@@ -34,7 +34,7 @@ public class PokeAgua extends Pokemon implements IAtaqueAgua {
 
     @Override
     public int burbuja(Pokemon objetivo) {
-        int danioBase = (int) (poderAgua * 0.8);
+        int danioBase = (int) (poderAgua * 0.4); // Reducido de 0.8 a 0.4
         double multiplicador = Pokemon.calcularMultiplicador(Tipo.AGUA, objetivo.getTipo());
         int danio = (int) (danioBase * multiplicador);
         objetivo.recibirDanio(danio);

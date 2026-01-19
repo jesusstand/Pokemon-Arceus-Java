@@ -39,12 +39,16 @@ public class NPC {
         }
     }
 
+    public String getMensaje() {
+        return mensaje;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
     public void interactuar() {
-        if ("Enemigo".equalsIgnoreCase(tipo)) {
-            System.out.println("A PELEAR");
-        } else {
-            System.out.println("NPC dice: " + mensaje);
-        }
+        // La logica ahora se maneja en Mapa.java para mostrar UI
     }
 
     public Vector2 getPosicion() {

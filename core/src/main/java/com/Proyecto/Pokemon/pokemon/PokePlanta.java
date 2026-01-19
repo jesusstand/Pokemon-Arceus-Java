@@ -25,7 +25,7 @@ public class PokePlanta extends Pokemon implements IAtaquePlanta {
 
     @Override
     public int hojaAfilada(Pokemon objetivo) {
-        int danioBase = (int) (poderPlanta * 1.1);
+        int danioBase = (int) (poderPlanta * 0.55); // Reducido de 1.1 a 0.55
         double multiplicador = Pokemon.calcularMultiplicador(Tipo.PLANTA, objetivo.getTipo());
         int danio = (int) (danioBase * multiplicador);
         objetivo.recibirDanio(danio);
@@ -34,12 +34,13 @@ public class PokePlanta extends Pokemon implements IAtaquePlanta {
 
     @Override
     public int absorber(Pokemon objetivo) {
-        int danioBase = (int) (poderPlanta * 0.7);
+        int danioBase = (int) (poderPlanta * 0.35); // Reducido de 0.7 a 0.35
         double multiplicador = Pokemon.calcularMultiplicador(Tipo.PLANTA, objetivo.getTipo());
         int danio = (int) (danioBase * multiplicador);
         objetivo.recibirDanio(danio);
-        // Absorbe vida: recupera toda la vida
-        this.curar();
+        // Absorbe vida: recupera parte de la vida (25% del daño causado)
+        int vidaRecuperada = (int) (danio * 0.25);
+        this.vida = Math.min(this.vidaMaxima, this.vida + vidaRecuperada);
         return danio;
     }
 

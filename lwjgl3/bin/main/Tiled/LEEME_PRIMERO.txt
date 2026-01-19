@@ -1,0 +1,60 @@
+================================================================================
+📁 CARPETA TILED - TODO LO NECESARIO PARA ABRIR MAPAS
+================================================================================
+
+Esta carpeta contiene TODOS los archivos necesarios para abrir y editar
+los mapas en Tiled Map Editor.
+
+================================================================================
+🚀 CÓMO USAR ESTA CARPETA
+================================================================================
+
+1. Abre Tiled Map Editor
+
+2. File → Open File... (Ctrl+O)
+
+3. Navega a esta carpeta: assets/Tiled/
+
+4. Selecciona uno de estos archivos:
+   ✅ MapaVerdePokemon.tmx  - Mapa principal (50x40 tiles)
+   ✅ MapaAzulPokemon.tmx   - Mapa secundario (40x30 tiles)
+
+5. ¡Listo! El mapa se abrirá con todos los tilesets cargados automáticamente
+
+================================================================================
+📂 CONTENIDO DE ESTA CARPETA
+================================================================================
+
+ARCHIVOS DE MAPA (.tmx):
+  • MapaVerdePokemon.tmx  - Mapa principal (50x40 tiles)
+  • MapaAzulPokemon.tmx   - Mapa secundario (40x30 tiles)
+
+TILESETS (.tsx):
+  • TexturasVerde.tsx     - Tileset principal de texturas
+  • PokebolaVerde.tsx     - Tileset de pokebolas
+  • NPC.tsx               - Tileset de NPCs/personajes
+
+IMÁGENES (TileSets/):
+  • TileSets/TilesetPokemon.png  - Imagen principal del tileset
+  • TileSets/PokebolasTiled.png  - Imagen de pokebolas
+  • TileSets/Personajes.png      - Imagen de NPCs
+
+================================================================================
+✅ IMPORTANTE
+================================================================================
+
+• Los archivos en esta carpeta (assets/Tiled/) son los que usa el JUEGO
+• Al editar los mapas en Tiled, estás editando los archivos que el juego usa
+• GUARDA siempre tus cambios antes de cerrar Tiled
+• NO muevas ni renombres los archivos de esta carpeta
+
+================================================================================
+📝 NOTA SOBRE PORTALES
+================================================================================
+
+Los portales entre mapas funcionan usando solo el nombre del mapa
+(sin "Tiled/"), por ejemplo: "MapaAzulPokemon" o "MapaVerdePokemon".
+
+El código automáticamente agrega "Tiled/" y ".tmx" cuando carga los mapas.
+
+================================================================================
