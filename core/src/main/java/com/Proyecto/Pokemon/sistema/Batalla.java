@@ -38,18 +38,6 @@ public class Batalla {
      * @return Mensaje descriptivo del ataque realizado.
      */
     public String realizarAtaque() {
-        // Usar ataque aleatorio por defecto
-        return realizarAtaque(null);
-    }
-    
-    /**
-     * Realiza un ataque específico del Pokemon atacante al defensor.
-     * Si el nombreAtaque es null, usa un ataque aleatorio.
-     *
-     * @param nombreAtaque Nombre del ataque a usar (null para aleatorio).
-     * @return Mensaje descriptivo del ataque realizado.
-     */
-    public String realizarAtaque(String nombreAtaque) {
         if (batallaTerminada) {
             return "La batalla ya ha terminado.";
         }
@@ -65,61 +53,46 @@ public class Batalla {
         }
 
         int danio = 0;
-        String nombreAtaqueUsado = "";
+        String nombreAtaque = "";
         String mensajeEfectividad = "";
 
         // Determinar el ataque según el tipo del Pokemon
-        // Si nombreAtaque es null o vacío, usar ataque aleatorio
-        boolean usarAtaqueAleatorio = (nombreAtaque == null || nombreAtaque.isEmpty());
-        
         if (atacante instanceof PokeFuego) {
             PokeFuego fuego = (PokeFuego) atacante;
-            if (usarAtaqueAleatorio || nombreAtaque.equals("Lanzallamas")) {
+            // Usar lanzallamas o llamarada (alternando)
+            if (Math.random() > 0.5) {
                 danio = fuego.lanzallamas(defensor);
-                nombreAtaqueUsado = "Lanzallamas";
-            } else if (nombreAtaque.equals("Llamarada")) {
-                danio = fuego.llamarada(defensor);
-                nombreAtaqueUsado = "Llamarada";
+                nombreAtaque = "Lanzallamas";
             } else {
-                // Ataque por defecto si no coincide
-                danio = fuego.lanzallamas(defensor);
-                nombreAtaqueUsado = "Lanzallamas";
+                danio = fuego.llamarada(defensor);
+                nombreAtaque = "Llamarada";
             }
         } else if (atacante instanceof PokeAgua) {
             PokeAgua agua = (PokeAgua) atacante;
-            if (usarAtaqueAleatorio || nombreAtaque.equals("Hidrochorro")) {
+            if (Math.random() > 0.5) {
                 danio = agua.hidrochorro(defensor);
-                nombreAtaqueUsado = "Hidrochorro";
-            } else if (nombreAtaque.equals("Burbuja")) {
-                danio = agua.burbuja(defensor);
-                nombreAtaqueUsado = "Burbuja";
+                nombreAtaque = "Hidrochorro";
             } else {
-                danio = agua.hidrochorro(defensor);
-                nombreAtaqueUsado = "Hidrochorro";
+                danio = agua.burbuja(defensor);
+                nombreAtaque = "Burbuja";
             }
         } else if (atacante instanceof PokePlanta) {
             PokePlanta planta = (PokePlanta) atacante;
-            if (usarAtaqueAleatorio || nombreAtaque.equals("Hoja Afilada")) {
+            if (Math.random() > 0.5) {
                 danio = planta.hojaAfilada(defensor);
-                nombreAtaqueUsado = "Hoja Afilada";
-            } else if (nombreAtaque.equals("Absorber")) {
-                danio = planta.absorber(defensor);
-                nombreAtaqueUsado = "Absorber";
+                nombreAtaque = "Hoja Afilada";
             } else {
-                danio = planta.hojaAfilada(defensor);
-                nombreAtaqueUsado = "Hoja Afilada";
+                danio = planta.absorber(defensor);
+                nombreAtaque = "Absorber";
             }
         } else if (atacante instanceof PokeDragon) {
             PokeDragon dragon = (PokeDragon) atacante;
-            if (usarAtaqueAleatorio || nombreAtaque.equals("Rayo Draconico")) {
+            if (Math.random() > 0.5) {
                 danio = dragon.rayoDraconico(defensor);
-                nombreAtaqueUsado = "Rayo Draconico";
-            } else if (nombreAtaque.equals("Cola Dragon")) {
-                danio = dragon.colaDragon(defensor);
-                nombreAtaqueUsado = "Cola Dragon";
+                nombreAtaque = "Rayo Draconico";
             } else {
-                danio = dragon.rayoDraconico(defensor);
-                nombreAtaqueUsado = "Rayo Draconico";
+                danio = dragon.colaDragon(defensor);
+                nombreAtaque = "Cola Dragon";
             }
         }
 
@@ -133,7 +106,7 @@ public class Batalla {
 
         // Construir mensaje
         StringBuilder mensaje = new StringBuilder();
-        mensaje.append(atacante.getNombre()).append(" usa ").append(nombreAtaqueUsado)
+        mensaje.append(atacante.getNombre()).append(" usa ").append(nombreAtaque)
                 .append(" contra ").append(defensor.getNombre())
                 .append(" causando ").append(danio).append(" puntos de daño")
                 .append(mensajeEfectividad).append("\n");
@@ -164,16 +137,6 @@ public class Batalla {
         } else {
             atacante = pokemon1;
             defensor = pokemon2;
-        }
-    }
-    
-    /**
-     * Consume el turno del atacante actual cambiando al siguiente turno.
-     * Útil cuando se usa un objeto (como pokebola) que consume el turno sin atacar.
-     */
-    public void consumirTurno() {
-        if (!batallaTerminada) {
-            cambiarTurnos();
         }
     }
 
@@ -239,24 +202,5 @@ public class Batalla {
      */
     public Pokemon getPokemon2() {
         return pokemon2;
-    }
-    
-    /**
-     * Cambia el Pokemon del jugador durante la batalla.
-     * Asume que pokemon1 es siempre el del jugador.
-     *
-     * @param nuevoPokemon Nuevo Pokemon del jugador.
-     */
-    public void cambiarPokemonJugador(Pokemon nuevoPokemon) {
-        Pokemon viejoPokemon = pokemon1;
-        pokemon1 = nuevoPokemon;
-        
-        // Actualizar referencias de atacante y defensor si estaban usando el pokemon anterior
-        if (atacante == viejoPokemon) {
-            atacante = nuevoPokemon;
-        }
-        if (defensor == viejoPokemon) {
-            defensor = nuevoPokemon;
-        }
     }
 }

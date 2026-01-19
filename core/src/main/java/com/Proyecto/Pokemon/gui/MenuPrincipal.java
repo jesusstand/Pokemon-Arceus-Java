@@ -2,7 +2,6 @@ package com.Proyecto.Pokemon.gui;
 
 import com.Proyecto.Pokemon.Main;
 import com.Proyecto.Pokemon.PantallaSeleccionPartida;
-import com.Proyecto.Pokemon.sistema.GestorMusica;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
@@ -141,9 +140,6 @@ public class MenuPrincipal implements Screen {
         }
 
         // --- DIBUJADO ---
-        // Asegurarse de que el batch tenga la matriz de proyección correcta (Ortho2D)
-        // Esto es necesario porque Map puede haber dejado el batch con una matriz de cámara
-        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         game.batch.begin();
 
         // Fondo con ligera transparencia.
@@ -170,11 +166,6 @@ public class MenuPrincipal implements Screen {
 
     @Override
     public void show() {
-        // Asegurarse de que el batch tenga la matriz de proyección correcta cuando se muestra esta pantalla
-        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        
-        // Reproducir música de menú
-        GestorMusica.reproducirMusica(GestorMusica.TipoMusica.MENU);
     }
 
     @Override

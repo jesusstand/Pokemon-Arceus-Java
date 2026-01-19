@@ -1,7 +1,6 @@
 package com.Proyecto.Pokemon.jugador;
 
 import com.Proyecto.Pokemon.gui.Mapa;
-import com.Proyecto.Pokemon.sistema.CapturaPokemon;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -32,7 +31,6 @@ public class Player {
     private float stateTime = 0f;
 
     private Almacenamiento inventario;
-    private CapturaPokemon sistemaCaptura;
 
     /**
      * Constructor del jugador.
@@ -44,7 +42,6 @@ public class Player {
         this.posicion = new Vector2(x, y);
         this.destino = new Vector2(x, y);
         this.inventario = new Almacenamiento();
-        this.sistemaCaptura = new CapturaPokemon(this.inventario);
         texture = new Texture(Gdx.files.internal("player_sprite.png"));
 
         // Configuracion de la hoja de sprites (asumimos 4x4).
@@ -86,7 +83,6 @@ public class Player {
                 moviendose = false;
                 // Comprobamos si hay algun portal en la nueva posicion.
                 mapa.revisarPortales(posicion.x, posicion.y);
-                mapa.revisarPortalCentro(posicion.x, posicion.y);
                 // Verificar si está en hierba y puede aparecer un Pokemon
                 mapa.verificarEncuentroPokemon(destino.x, destino.y);
                 // Si el usuario mantiene pulsada una tecla, continuamos el movimiento.
@@ -210,15 +206,6 @@ public class Player {
 
     public Almacenamiento getInventario() {
         return inventario;
-    }
-
-    /**
-     * Obtiene el sistema de captura del jugador.
-     *
-     * @return Sistema de captura de Pokemon.
-     */
-    public CapturaPokemon getSistemaCaptura() {
-        return sistemaCaptura;
     }
 
     /**

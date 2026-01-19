@@ -1,7 +1,6 @@
 package com.Proyecto.Pokemon.gui;
 
 import com.Proyecto.Pokemon.Main;
-import com.Proyecto.Pokemon.sistema.GestorMusica;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
@@ -43,8 +42,6 @@ public class PantallaDeInicio implements Screen {
 
     @Override
     public void show() {
-        // Reproducir música de menú en la pantalla de inicio
-        GestorMusica.reproducirMusica(GestorMusica.TipoMusica.MENU);
     }
 
     /**
@@ -70,19 +67,19 @@ public class PantallaDeInicio implements Screen {
         float screenWidth = Gdx.graphics.getWidth();
         float screenHeight = Gdx.graphics.getHeight();
 
-        // Asegurar que el batch use la proyección correcta para pantalla completa
-        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, screenWidth, screenHeight);
+        float anchoBoton = screenWidth * BUTTON_WIDTH_FACTOR;
+        float altoBoton = screenHeight * BUTTON_HEIGHT_FACTOR;
+        float posX = (screenWidth / 2) - (anchoBoton / 2); // Centrado horizontal.
+        float posY = screenHeight * BUTTON_Y_POS;
+
+        // Iniciamos el proceso de dibujado.
         game.batch.begin();
 
-        // 1. Dibujamos el fondo ocupando toda la ventana (se ajusta automáticamente)
+        // 1. Dibujamos el fondo ocupando toda la ventana.
         game.batch.draw(fondoPantalla, 0, 0, screenWidth, screenHeight);
 
         // 2. Dibujamos el mensaje solo si toca por el parpadeo.
         if (esVisible) {
-            float anchoBoton = screenWidth * BUTTON_WIDTH_FACTOR;
-            float altoBoton = screenHeight * BUTTON_HEIGHT_FACTOR;
-            float posX = (screenWidth / 2) - (anchoBoton / 2); // Centrado horizontal.
-            float posY = screenHeight * BUTTON_Y_POS;
             game.batch.draw(boton, posX, posY, anchoBoton, altoBoton);
         }
 
