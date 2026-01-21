@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="40" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="4" nextobjectid="9">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="40" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="20">
  <tileset firstgid="1" source="TexturasVerde.tsx"/>
  <tileset firstgid="6073" source="PokebolaVerde.tsx"/>
  <tileset firstgid="6173" source="NPC.tsx"/>
@@ -37,6 +37,13 @@
 3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3259,3521,2,2,2,2,3523,3257,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170,3170
 </data>
  </layer>
+ <objectgroup id="6" name="PeleaBoss">
+  <object id="18" name="Pelea" x="544.545" y="415.818" width="30.9091" height="16">
+   <properties>
+    <property name="Pelea" value="boss1"/>
+   </properties>
+  </object>
+ </objectgroup>
  <layer id="2" name="Capa de patrones 2" width="40" height="30">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -77,6 +84,17 @@
     <property name="Destino" value="MapaVerdePokemon"/>
    </properties>
   </object>
-  <object id="5" name="PortalGris" x="544.667" y="432" width="30" height="15.3333"/>
+ </objectgroup>
+ <objectgroup id="5" name="Sentido">
+  <object id="17" name="arriba" x="336.005" y="432.114" width="16.0163" height="16.0598">
+   <properties>
+    <property name="Sentido" value="arriba"/>
+   </properties>
+  </object>
+  <object id="19" name="abajo" x="544" y="448.182" width="16.3636" height="15.4545">
+   <properties>
+    <property name="Sentido" value="abajo"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>

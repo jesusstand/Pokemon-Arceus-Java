@@ -25,6 +25,10 @@ public class Main extends Game {
     private boolean dracorneaDerrotado = false;
     private boolean aethergonDerrotado = false;
 
+    /**
+     * Inicializa los recursos globales del juego.
+     * Crea el SpriteBatch, el jugador y establece la pantalla inicial.
+     */
     @Override
     public void create() {
         // Se inicializa el SpriteBatch para el dibujado de graficos.
@@ -41,10 +45,20 @@ public class Main extends Game {
         setScreen(new PantallaDeInicio(this));
     }
 
+    /**
+     * Obtiene la instancia global del jugador.
+     * 
+     * @return El jugador actual.
+     */
     public Player getJugador() {
         return jugador;
     }
 
+    /**
+     * Establece la instancia global del jugador.
+     * 
+     * @param jugador El nuevo jugador a asignar.
+     */
     public void setJugador(Player jugador) {
         this.jugador = jugador;
     }
@@ -86,10 +100,20 @@ public class Main extends Game {
         return dracorneaDerrotado && aethergonDerrotado;
     }
 
+    /**
+     * Verifica si Dracornea ha sido derrotado.
+     * 
+     * @return true si Dracornea fue derrotado.
+     */
     public boolean isDracorneaDerrotado() {
         return dracorneaDerrotado;
     }
 
+    /**
+     * Verifica si Aethergon ha sido derrotado.
+     * 
+     * @return true si Aethergon fue derrotado.
+     */
     public boolean isAethergonDerrotado() {
         return aethergonDerrotado;
     }

@@ -164,58 +164,42 @@ public class PantallaSeleccionPartida implements Screen {
             // Aquí podrías mostrar un mensaje en pantalla al usuario
             return;
         }
-        
+
         // Cargar los datos de la partida
         DatosPartida datos = GestorGuardado.cargarPartida();
         if (datos == null) {
             System.err.println("Error: No se pudieron cargar los datos de la partida.");
             return;
         }
-        
+
         try {
-            // Recrear el Pokemon desde los datos guardados
-            com.Proyecto.Pokemon.pokemon.Pokemon pokemon = GestorGuardado.recrearPokemon(datos);
-            if (pokemon == null) {
-                System.err.println("Error: No se pudo recrear el Pokemon.");
-                return;
-            }
-            
-            // Crear o actualizar el jugador con la posición guardada
+            // Crear el jugador con la posición guardada
             Player jugador = new Player(datos.posicionX, datos.posicionY);
-            
+
+            // Restaurar el equipo completo
+            GestorGuardado.restaurarEquipo(jugador, datos);
+
             // Restaurar el inventario
             GestorGuardado.restaurarInventario(jugador, datos);
-            
-            // Establecer el jugador y Pokemon en el juego
+
+            // Restaurar progresos de investigacion (Pokedex)
+            GestorGuardado.restaurarInvestigacion(jugador, datos);
+
+            // Establecer el jugador en el juego
             game.setJugador(jugador);
-            game.setPokemonInicial(pokemon);
-            
-            // Asegurar que el Pokemon inicial esté en el equipo/mochila
-            // (en caso de que no esté por alguna razón)
-            if (jugador != null && jugador.getSistemaCaptura() != null) {
-                java.util.List<com.Proyecto.Pokemon.pokemon.Pokemon> capturados = 
-                    jugador.getSistemaCaptura().getPokemonsCapturados();
-                boolean estaEnEquipo = false;
-                for (com.Proyecto.Pokemon.pokemon.Pokemon p : capturados) {
-                    if (p.getNombre().equals(pokemon.getNombre()) && 
-                        p.getTipo() == pokemon.getTipo()) {
-                        estaEnEquipo = true;
-                        break;
-                    }
-                }
-                // Si no está en el equipo, agregarlo
-                if (!estaEnEquipo) {
-                    capturados.add(pokemon);
-                    System.out.println("¡" + pokemon.getNombre() + " ha sido agregado a tu equipo!");
-                }
+
+            // El pokemon inicial es el primero del equipo para efectos de HUD/Batalla
+            if (jugador.getEquipo().getCantidad() > 0) {
+                game.setPokemonInicial(jugador.getEquipo().getPokemon(0));
             }
-            
-            // Construir el nombre del archivo del mapa (agregar prefijo y extensión si es necesario)
+
+            // Construir el nombre del archivo del mapa (agregar prefijo y extensión si es
+            // necesario)
             String nombreMapa = datos.mapaActual;
             if (nombreMapa == null || nombreMapa.isEmpty()) {
                 nombreMapa = "MapaVerdePokemon";
             }
-            
+
             // Asegurar que tenga el formato correcto: "Tiled/MapaVerdePokemon.tmx"
             if (!nombreMapa.startsWith("Tiled/")) {
                 nombreMapa = "Tiled/" + nombreMapa;
@@ -223,16 +207,18 @@ public class PantallaSeleccionPartida implements Screen {
             if (!nombreMapa.endsWith(".tmx")) {
                 nombreMapa = nombreMapa + ".tmx";
             }
-            
+
             System.out.println("Cargando partida guardada en mapa: " + nombreMapa);
             System.out.println("Posición del jugador: (" + datos.posicionX + ", " + datos.posicionY + ")");
-            System.out.println("Pokemon: " + pokemon.getNombre() + " (" + pokemon.getTipo() + ")");
-            
+            System.out.println("Pokemon: " + game.getPokemonInicial().getNombre() + " ("
+                    + game.getPokemonInicial().getTipo() + ")");
+
             // Cargar el mapa con la posición del jugador ya establecida
-            // El constructor de Mapa usará la posición del jugador que ya está en game.getJugador()
+            // El constructor de Mapa usará la posición del jugador que ya está en
+            // game.getJugador()
             game.setScreen(new Mapa(game, nombreMapa));
             dispose();
-            
+
         } catch (Exception e) {
             System.err.println("Error al cargar la partida: " + e.getMessage());
             e.printStackTrace();

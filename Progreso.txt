@@ -1,0 +1,14 @@
+{
+"posicionX": 14.083628,
+"posicionY": 9,
+"inventario": {},
+"equipo": [
+	{
+		"nombre": "Aqualisca",
+		"tipo": "AGUA",
+		"genero": "Macho",
+		"vida": 92
+	}
+],
+"mapaActual": "MapaVerdePokemon"
+}

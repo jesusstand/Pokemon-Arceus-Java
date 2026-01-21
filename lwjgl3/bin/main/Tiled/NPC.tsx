@@ -13,12 +13,12 @@
  </tile>
  <tile id="910">
   <properties>
-   <property name="NPC" value="Enemigo"/>
+   <property name="NPC" value="Enemigo1"/>
   </properties>
  </tile>
  <tile id="938">
   <properties>
-   <property name="NPC" value="Enemigo"/>
+   <property name="NPC" value="Enemigo2"/>
   </properties>
   <objectgroup draworder="index" id="2">
    <object id="1" type="NPC" x="1" y="3" width="14" height="20"/>
@@ -26,7 +26,7 @@
  </tile>
  <tile id="949">
   <properties>
-   <property name="NPC" value="Enemigo"/>
+   <property name="NPC" value="Enemigo3"/>
   </properties>
   <objectgroup>
    <object id="1" type="NPC" x="1" y="3" width="14" height="20"/>
@@ -34,7 +34,7 @@
  </tile>
  <tile id="962">
   <properties>
-   <property name="NPC" value="Enemigo"/>
+   <property name="NPC" value="Enemigo4"/>
   </properties>
   <objectgroup>
    <object id="1" type="NPC" x="1" y="3" width="14" height="20"/>

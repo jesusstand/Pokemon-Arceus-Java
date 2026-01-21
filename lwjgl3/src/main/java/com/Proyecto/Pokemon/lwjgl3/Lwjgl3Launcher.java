@@ -28,9 +28,9 @@ public class Lwjgl3Launcher {
         // actual mas 1.
         configuration.setForegroundFPS(Lwjgl3ApplicationConfiguration.getDisplayMode().refreshRate + 1);
 
-        // Configurar para iniciar en ventana maximizada
-        configuration.setWindowedMode(960, 600); // Tamaño base (se maximizará)
-        configuration.setMaximized(true);
+        // Configurar para iniciar en ventana
+        configuration.setWindowedMode(960, 600); // Tamaño base
+        // configuration.setMaximized(true);
 
         // Iconos de la aplicacion (deben estar en la carpeta assets).
         configuration.setWindowIcon("libgdx128.png", "libgdx64.png", "libgdx32.png", "libgdx16.png");

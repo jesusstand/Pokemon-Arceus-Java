@@ -10,20 +10,41 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.utils.JsonWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 /**
- * Gestiona el guardado y carga de partidas.
+ * Gestiona el guardado y carga de partidas en Progreso.txt.
  */
 public class GestorGuardado {
-    private static final String ARCHIVO_GUARDADO = "partida_guardada.json";
+    private static final String ARCHIVO_GUARDADO = "Progreso.txt";
     private static final Json json = new Json();
-    
+
     static {
-        // Configurar JSON para que sea legible
         json.setOutputType(JsonWriter.OutputType.json);
     }
-    
+
+    /**
+     * Datos individuales de un Pokemon para guardar.
+     */
+    public static class DatosPokemon {
+        public String nombre;
+        public String tipo;
+        public String genero;
+        public int vida;
+
+        public DatosPokemon() {
+        }
+
+        public DatosPokemon(Pokemon p) {
+            this.nombre = p.getNombre();
+            this.tipo = p.getTipo().name();
+            this.genero = p.getSexo();
+            this.vida = p.getVida();
+        }
+    }
+
     /**
      * Datos de la partida guardada.
      */
@@ -31,203 +52,139 @@ public class GestorGuardado {
         public float posicionX;
         public float posicionY;
         public HashMap<String, Integer> inventario;
-        public String nombrePokemon;
-        public String tipoPokemon;
-        public String generoPokemon;
+        public HashMap<String, Integer> investigacion;
+        public List<DatosPokemon> equipo;
         public String mapaActual;
-        
+
         public DatosPartida() {
-            // Constructor vacío para JSON
+            this.equipo = new ArrayList<>();
+            this.investigacion = new HashMap<>(); // Inicializar para evitar nulos
         }
-        
-        public DatosPartida(Player jugador, Pokemon pokemon, String mapa) {
+
+        public DatosPartida(Player jugador, String mapa) {
             this.posicionX = jugador.getX();
             this.posicionY = jugador.getY();
             this.inventario = new HashMap<>(jugador.getInventario().getMapa());
-            this.nombrePokemon = pokemon.getNombre();
-            this.tipoPokemon = pokemon.getTipo().name();
-            this.generoPokemon = pokemon.getSexo();
+            this.investigacion = new HashMap<>(jugador.getMapaPuntosInvestigacion());
             this.mapaActual = mapa;
+            this.equipo = new ArrayList<>();
+
+            // Guardar todos los Pokemon del equipo
+            for (Pokemon p : jugador.getEquipo().getPokemons()) {
+                this.equipo.add(new DatosPokemon(p));
+            }
         }
     }
-    
-    /**
-     * Guarda el estado actual de la partida.
-     * 
-     * @param jugador El jugador actual.
-     * @param pokemon El Pokémon inicial del jugador.
-     * @param mapaActual El nombre del mapa actual (sin extensión .tmx).
-     * @return true si se guardó correctamente, false en caso contrario.
-     */
-    public static boolean guardarPartida(Player jugador, Pokemon pokemon, String mapaActual) {
+
+    public static boolean guardarPartida(Player jugador, String mapaActual) {
         try {
-            DatosPartida datos = new DatosPartida(jugador, pokemon, mapaActual);
-            
-            // Usar FileHandle local para guardar en el directorio local del usuario
+            DatosPartida datos = new DatosPartida(jugador, mapaActual);
             FileHandle archivo = Gdx.files.local(ARCHIVO_GUARDADO);
-            String jsonString = json.prettyPrint(datos);
-            archivo.writeString(jsonString, false);
-            
-            System.out.println("Partida guardada correctamente en: " + archivo.path());
+            archivo.writeString(json.prettyPrint(datos), false);
+            System.out.println("Partida guardada en: " + ARCHIVO_GUARDADO);
             return true;
         } catch (Exception e) {
-            System.err.println("Error al guardar la partida: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Error al guardar: " + e.getMessage());
             return false;
         }
     }
-    
-    /**
-     * Carga una partida guardada.
-     * 
-     * @return Los datos de la partida guardada, o null si no existe o hay error.
-     */
+
     public static DatosPartida cargarPartida() {
         try {
             FileHandle archivo = Gdx.files.local(ARCHIVO_GUARDADO);
-            
-            if (!archivo.exists()) {
-                System.out.println("No existe partida guardada.");
+            if (!archivo.exists())
                 return null;
-            }
-            
-            String jsonString = archivo.readString();
-            DatosPartida datos = json.fromJson(DatosPartida.class, jsonString);
-            
-            System.out.println("Partida cargada correctamente desde: " + archivo.path());
-            return datos;
+            return json.fromJson(DatosPartida.class, archivo.readString());
         } catch (Exception e) {
-            System.err.println("Error al cargar la partida: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Error al cargar: " + e.getMessage());
             return null;
         }
     }
-    
-    /**
-     * Verifica si existe una partida guardada.
-     * 
-     * @return true si existe una partida guardada, false en caso contrario.
-     */
+
     public static boolean existePartidaGuardada() {
-        FileHandle archivo = Gdx.files.local(ARCHIVO_GUARDADO);
-        return archivo.exists();
+        return Gdx.files.local(ARCHIVO_GUARDADO).exists();
     }
-    
-    /**
-     * Elimina la partida guardada.
-     * 
-     * @return true si se eliminó correctamente, false en caso contrario.
-     */
+
     public static boolean eliminarPartidaGuardada() {
-        try {
-            FileHandle archivo = Gdx.files.local(ARCHIVO_GUARDADO);
-            if (archivo.exists()) {
-                archivo.delete();
-                System.out.println("Partida guardada eliminada.");
-                return true;
-            }
-            return false;
-        } catch (Exception e) {
-            System.err.println("Error al eliminar la partida guardada: " + e.getMessage());
-            return false;
+        FileHandle archivo = Gdx.files.local(ARCHIVO_GUARDADO);
+        if (archivo.exists()) {
+            archivo.delete();
+            return true;
         }
+        return false;
     }
-    
-    /**
-     * Recrea un Pokemon desde los datos guardados.
-     * 
-     * @param datos Los datos de la partida guardada.
-     * @return El Pokemon recreado, o null si hay error.
-     */
-    public static Pokemon recrearPokemon(DatosPartida datos) {
-        if (datos == null) {
+
+    public static Pokemon recrearPokemon(DatosPokemon datos) {
+        if (datos == null)
             return null;
-        }
-        
+
         try {
-            String nombre = datos.nombrePokemon;
-            String genero = datos.generoPokemon != null ? datos.generoPokemon : "Macho";
-            Tipo tipo = null;
-            
-            // Intentar obtener el tipo desde el string guardado
-            try {
-                tipo = Tipo.valueOf(datos.tipoPokemon);
-            } catch (IllegalArgumentException e) {
-                System.err.println("Tipo de Pokemon inválido: " + datos.tipoPokemon);
-                return null;
-            }
-            
-            // Recrear el Pokemon según su nombre
-            if (nombre == null || nombre.isEmpty()) {
-                System.err.println("Nombre de Pokemon no válido.");
-                return null;
-            }
-            
-            // Crear el Pokemon según su nombre (case-insensitive)
-            String nombreLower = nombre.toLowerCase();
-            
+            Tipo tipo = Tipo.valueOf(datos.tipo);
+            String genero = datos.genero != null ? datos.genero : "Macho";
+            String nombre = datos.nombre.toLowerCase();
+            Pokemon p = null;
+
             if (tipo == Tipo.FUEGO) {
-                if (nombreLower.equals("ignirrojo")) {
-                    return new PokeFuego.Ignirrojo(genero);
-                } else if (nombreLower.equals("volcárex") || nombreLower.equals("volcarex")) {
-                    return new PokeFuego.Volcarex(genero);
-                }
+                if (nombre.contains("ignirrojo"))
+                    p = new PokeFuego.Ignirrojo(genero);
+                else if (nombre.contains("volcarex"))
+                    p = new PokeFuego.Volcarex(genero);
             } else if (tipo == Tipo.AGUA) {
-                if (nombreLower.equals("aqualisca")) {
-                    return new PokeAgua.Aqualisca(genero);
-                } else if (nombreLower.equals("mareónix") || nombreLower.equals("mareonix")) {
-                    return new PokeAgua.Mareonix(genero);
-                }
+                if (nombre.contains("aqualisca"))
+                    p = new PokeAgua.Aqualisca(genero);
+                else if (nombre.contains("mareonix"))
+                    p = new PokeAgua.Mareonix(genero);
             } else if (tipo == Tipo.PLANTA) {
-                if (nombreLower.equals("brotálamo") || nombreLower.equals("brotalamo")) {
-                    return new PokePlanta.Brotalamo(genero);
-                } else if (nombreLower.equals("floravelo")) {
-                    return new PokePlanta.Floravelo(genero);
-                }
+                if (nombre.contains("brotalamo"))
+                    p = new PokePlanta.Brotalamo(genero);
+                else if (nombre.contains("floravelo"))
+                    p = new PokePlanta.Floravelo(genero);
             }
-            
-            // Si no se encuentra el Pokemon específico, crear uno por defecto según el tipo
-            System.out.println("Pokemon específico no encontrado: " + nombre + ", usando default para tipo " + tipo);
-            switch (tipo) {
-                case FUEGO:
-                    return new PokeFuego.Ignirrojo(genero);
-                case AGUA:
-                    return new PokeAgua.Aqualisca(genero);
-                case PLANTA:
-                    return new PokePlanta.Brotalamo(genero);
-                default:
-                    return new PokeFuego.Ignirrojo(genero); // Fallback
+
+            if (p == null) {
+                // Fallback por tipo
+                if (tipo == Tipo.FUEGO)
+                    p = new PokeFuego.Ignirrojo(genero);
+                else if (tipo == Tipo.AGUA)
+                    p = new PokeAgua.Aqualisca(genero);
+                else
+                    p = new PokePlanta.Brotalamo(genero);
             }
+
+            // Restaurar vida
+            p.curar();
+            int danio = p.getVidaMaxima() - datos.vida;
+            if (danio > 0)
+                p.recibirDanio(danio);
+
+            return p;
         } catch (Exception e) {
-            System.err.println("Error al recrear Pokemon: " + e.getMessage());
-            e.printStackTrace();
             return null;
         }
     }
-    
-    /**
-     * Restaura el inventario del jugador desde los datos guardados.
-     * 
-     * @param jugador El jugador al que se le restaurará el inventario.
-     * @param datos Los datos de la partida guardada.
-     */
-    public static void restaurarInventario(Player jugador, DatosPartida datos) {
-        if (datos == null || datos.inventario == null || jugador == null) {
+
+    public static void restaurarEquipo(Player jugador, DatosPartida datos) {
+        if (datos == null || datos.equipo == null || jugador == null)
             return;
+        jugador.getEquipo().limpiar();
+        for (DatosPokemon dp : datos.equipo) {
+            Pokemon p = recrearPokemon(dp);
+            if (p != null)
+                jugador.getEquipo().agregarPokemon(p);
         }
-        
-        try {
-            // Limpiar el inventario actual
-            HashMap<String, Integer> inventarioActual = jugador.getInventario().getMapa();
-            inventarioActual.clear();
-            
-            // Restaurar desde los datos guardados
-            inventarioActual.putAll(datos.inventario);
-            
-            System.out.println("Inventario restaurado con " + inventarioActual.size() + " tipos de objetos.");
-        } catch (Exception e) {
-            System.err.println("Error al restaurar inventario: " + e.getMessage());
-            e.printStackTrace();
-        }
+    }
+
+    public static void restaurarInventario(Player jugador, DatosPartida datos) {
+        if (datos == null || datos.inventario == null || jugador == null)
+            return;
+        jugador.getInventario().getMapa().clear();
+        jugador.getInventario().getMapa().putAll(datos.inventario);
+    }
+
+    public static void restaurarInvestigacion(Player jugador, DatosPartida datos) {
+        if (datos == null || datos.investigacion == null || jugador == null)
+            return;
+        jugador.getMapaPuntosInvestigacion().clear();
+        jugador.getMapaPuntosInvestigacion().putAll(datos.investigacion);
     }
 }

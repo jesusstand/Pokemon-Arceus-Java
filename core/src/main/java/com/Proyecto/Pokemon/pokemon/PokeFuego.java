@@ -7,20 +7,29 @@ import com.Proyecto.Pokemon.ataques.IAtaqueFuego;
  * Implementa la interfaz IAtaqueFuego con ataques únicos de tipo Fuego.
  */
 public class PokeFuego extends Pokemon implements IAtaqueFuego {
-    private int poderFuego; // Poder base de ataques de fuego
+    private int poderFuego; // Poder ACTUAL de ataques de fuego
+    private int basePoderFuego; // Poder BASE de ataques de fuego
 
     /**
      * Constructor de Pokemon de tipo Fuego.
-     *
-     * @param nombre     Nombre del Pokemon.
-     * @param peso       Peso en kilogramos.
-     * @param sexo       Sexo del Pokemon.
-     * @param vidaMaxima Puntos de salud máximos.
-     * @param poderFuego Poder base para ataques de fuego.
      */
+    public PokeFuego(String nombre, double peso, String sexo, int vidaMaxima, int poderFuego, int nivel) {
+        super(nombre, peso, sexo, vidaMaxima, Tipo.FUEGO, nivel);
+        this.basePoderFuego = poderFuego;
+        calcularEstadisticas();
+    }
+
+    // Constructor compatibilidad
     public PokeFuego(String nombre, double peso, String sexo, int vidaMaxima, int poderFuego) {
-        super(nombre, peso, sexo, vidaMaxima, Tipo.FUEGO);
-        this.poderFuego = poderFuego;
+        this(nombre, peso, sexo, vidaMaxima, poderFuego, 1);
+    }
+
+    @Override
+    protected void calcularEstadisticas() {
+        super.calcularEstadisticas();
+        // Poder aumenta 10% por nivel extra
+        double porcentajePoder = 1.0 + (0.10 * (nivel - 1));
+        this.poderFuego = (int) (basePoderFuego * porcentajePoder);
     }
 
     @Override
@@ -46,7 +55,11 @@ public class PokeFuego extends Pokemon implements IAtaqueFuego {
      */
     public static class Ignirrojo extends PokeFuego {
         public Ignirrojo(String sexo) {
-            super("Ignirrojo", 28.5, sexo, 75, 42);
+            super("Ignirrojo", 28.5, sexo, 75, 42, 1);
+        }
+
+        public Ignirrojo(String sexo, int nivel) {
+            super("Ignirrojo", 28.5, sexo, 75, 42, nivel);
         }
     }
 
@@ -55,7 +68,11 @@ public class PokeFuego extends Pokemon implements IAtaqueFuego {
      */
     public static class Volcarex extends PokeFuego {
         public Volcarex(String sexo) {
-            super("Volcárex", 45.2, sexo, 100, 50);
+            super("Volcárex", 45.2, sexo, 100, 50, 1); // Default lvl 1
+        }
+
+        public Volcarex(String sexo, int nivel) {
+            super("Volcárex", 45.2, sexo, 100, 50, nivel);
         }
     }
 }

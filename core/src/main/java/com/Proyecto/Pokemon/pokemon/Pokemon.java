@@ -11,6 +11,9 @@ public abstract class Pokemon {
     protected int vida; // PS (Puntos de Salud)
     protected int vidaMaxima; // PS máximos
     protected Tipo tipo; // Tipo del Pokemon
+    protected int nivel;
+    protected int baseVidaMaxima;
+    protected static final int NIVEL_MAXIMO = 20;
 
     /**
      * Constructor de Pokemon.
@@ -18,16 +21,68 @@ public abstract class Pokemon {
      * @param nombre     Nombre del Pokemon.
      * @param peso       Peso en kilogramos.
      * @param sexo       Sexo del Pokemon ("Macho", "Hembra" o "Sin género").
-     * @param vidaMaxima Puntos de salud máximos.
+     * @param vidaMaxima Puntos de salud máximos BASE (nivel 1).
      * @param tipo       Tipo del Pokemon.
+     * @param nivel      Nivel inicial del Pokemon.
      */
-    public Pokemon(String nombre, double peso, String sexo, int vidaMaxima, Tipo tipo) {
+    public Pokemon(String nombre, double peso, String sexo, int vidaMaxima, Tipo tipo, int nivel) {
         this.nombre = nombre;
         this.peso = peso;
         this.sexo = sexo;
-        this.vidaMaxima = vidaMaxima;
-        this.vida = vidaMaxima; // Al crear, la vida está al máximo
+        this.baseVidaMaxima = vidaMaxima;
         this.tipo = tipo;
+        this.nivel = Math.max(1, Math.min(nivel, NIVEL_MAXIMO));
+
+        calcularEstadisticas();
+        this.vida = this.vidaMaxima; // Al crear, la vida está al máximo
+    }
+
+    // Constructor de compatibilidad (por si acaso quedan llamadas viejas, asume
+    // nivel 1)
+    public Pokemon(String nombre, double peso, String sexo, int vidaMaxima, Tipo tipo) {
+        this(nombre, peso, sexo, vidaMaxima, tipo, 1);
+    }
+
+    /**
+     * Calcula las estadísticas actuales basadas en el nivel.
+     * Vida: Base + 15% por nivel adicional.
+     */
+    protected void calcularEstadisticas() {
+        // Por cada nivel extra (nivel - 1), aumenta 15%
+        double porcentajeVida = 1.0 + (0.15 * (nivel - 1));
+        this.vidaMaxima = (int) (baseVidaMaxima * porcentajeVida);
+
+        // Ajustar vida actual proporcionalmente o simplemente no exceder el máximo
+        // (aquí mantenemos para no curar mágicamente al subir nivel en medio de pelea
+        // si no se quiere, pero para simplificar, si vida > vidaMaxima se ajusta)
+        this.vida = Math.min(this.vida, this.vidaMaxima);
+    }
+
+    public void subirNivel() {
+        if (nivel < NIVEL_MAXIMO) {
+            nivel++;
+            int vidaAnt = this.vidaMaxima;
+            calcularEstadisticas();
+            int vidaNueva = this.vidaMaxima;
+            // Curar la diferencia de vida ganada al subir de nivel (opcional, pero común)
+            this.vida += (vidaNueva - vidaAnt);
+            System.out.println(nombre + " subio al nivel " + nivel + "!");
+        } else {
+            System.out.println(nombre + " ya esta en el nivel maximo!");
+        }
+    }
+
+    public int getNivel() {
+        return nivel;
+    }
+
+    /**
+     * Cura una cantidad específica de vida.
+     * 
+     * @param cantidad Cantidad a curar.
+     */
+    public void curar(int cantidad) {
+        this.vida = Math.min(this.vida + cantidad, this.vidaMaxima);
     }
 
     /**
@@ -64,6 +119,15 @@ public abstract class Pokemon {
      */
     public int getVida() {
         return vida;
+    }
+
+    /**
+     * Establece la vida actual del Pokemon.
+     *
+     * @param vida Puntos de salud actuales.
+     */
+    public void setVida(int vida) {
+        this.vida = Math.max(0, Math.min(vida, vidaMaxima));
     }
 
     /**
@@ -121,26 +185,34 @@ public abstract class Pokemon {
     /**
      * Calcula el multiplicador de daño según la efectividad de tipos.
      *
-     * @param tipoAtaque Tipo del ataque.
+     * @param tipoAtaque  Tipo del ataque.
      * @param tipoDefensa Tipo del defensor.
-     * @return Multiplicador de daño (2.0 = super efectivo, 0.5 = no efectivo, 1.0 = neutro).
+     * @return Multiplicador de daño (2.0 = super efectivo, 0.5 = no efectivo, 1.0 =
+     *         neutro).
      */
     public static double calcularMultiplicador(Tipo tipoAtaque, Tipo tipoDefensa) {
         // Fuego es super efectivo contra Planta
-        if (tipoAtaque == Tipo.FUEGO && tipoDefensa == Tipo.PLANTA) return 2.0;
+        if (tipoAtaque == Tipo.FUEGO && tipoDefensa == Tipo.PLANTA)
+            return 2.0;
         // Planta es super efectivo contra Agua
-        if (tipoAtaque == Tipo.PLANTA && tipoDefensa == Tipo.AGUA) return 2.0;
+        if (tipoAtaque == Tipo.PLANTA && tipoDefensa == Tipo.AGUA)
+            return 2.0;
         // Agua es super efectivo contra Fuego
-        if (tipoAtaque == Tipo.AGUA && tipoDefensa == Tipo.FUEGO) return 2.0;
+        if (tipoAtaque == Tipo.AGUA && tipoDefensa == Tipo.FUEGO)
+            return 2.0;
         // Dragon es super efectivo contra Dragon
-        if (tipoAtaque == Tipo.DRAGON && tipoDefensa == Tipo.DRAGON) return 2.0;
+        if (tipoAtaque == Tipo.DRAGON && tipoDefensa == Tipo.DRAGON)
+            return 2.0;
 
         // Planta no es efectivo contra Fuego
-        if (tipoAtaque == Tipo.PLANTA && tipoDefensa == Tipo.FUEGO) return 0.5;
+        if (tipoAtaque == Tipo.PLANTA && tipoDefensa == Tipo.FUEGO)
+            return 0.5;
         // Fuego no es efectivo contra Agua
-        if (tipoAtaque == Tipo.FUEGO && tipoDefensa == Tipo.AGUA) return 0.5;
+        if (tipoAtaque == Tipo.FUEGO && tipoDefensa == Tipo.AGUA)
+            return 0.5;
         // Agua no es efectivo contra Planta
-        if (tipoAtaque == Tipo.AGUA && tipoDefensa == Tipo.PLANTA) return 0.5;
+        if (tipoAtaque == Tipo.AGUA && tipoDefensa == Tipo.PLANTA)
+            return 0.5;
 
         return 1.0; // Neutro para el resto de combinaciones
     }
@@ -152,7 +224,7 @@ public abstract class Pokemon {
      */
     @Override
     public String toString() {
-        return String.format("%s [%s] - PS: %d/%d - Peso: %.1f kg - Sexo: %s",
-                nombre, tipo.name(), vida, vidaMaxima, peso, sexo);
+        return String.format("%s [Lvl %d] [%s] - PS: %d/%d - Peso: %.1f kg - Sexo: %s",
+                nombre, nivel, tipo.name(), vida, vidaMaxima, peso, sexo);
     }
 }

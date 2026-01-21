@@ -116,11 +116,6 @@
    <object id="1" type="Cercas" x="0" y="0" width="16" height="16"/>
   </objectgroup>
  </tile>
- <tile id="705">
-  <objectgroup>
-   <object id="1" type="Locales" x="0" y="0" width="16" height="16"/>
-  </objectgroup>
- </tile>
  <tile id="706">
   <objectgroup>
    <object id="1" type="Locales" x="0" y="0" width="16" height="16"/>
@@ -207,11 +202,6 @@
   </objectgroup>
  </tile>
  <tile id="1056">
-  <objectgroup>
-   <object id="1" type="Locales" x="0" y="0" width="16" height="16"/>
-  </objectgroup>
- </tile>
- <tile id="1057">
   <objectgroup>
    <object id="1" type="Locales" x="0" y="0" width="16" height="16"/>
   </objectgroup>
@@ -552,11 +542,6 @@
   </objectgroup>
  </tile>
  <tile id="5347">
-  <objectgroup>
-   <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
-  </objectgroup>
- </tile>
- <tile id="5348">
   <objectgroup>
    <object id="1" type="EdificioAzul" x="0" y="0" width="16" height="16"/>
   </objectgroup>

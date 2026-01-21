@@ -20,15 +20,13 @@ public class MenuPrincipal implements Screen {
     private Main game;
     // Texturas para el fondo y los botones en sus diferentes estados.
     private Texture fondoMenu;
-    private Texture partidaIndividual, partidaIndividualC, salirMenu, salirMenuC, multiplayer, multiplayerC,
-            opcionesMenu, opcionesMenuC;
+    private Texture partidaIndividual, partidaIndividualC, salirMenu, salirMenuC, multiplayer, multiplayerC;
 
     // --- CONSTANTES DEL ESTADO DEL MENU ---
     private static final int PARTIDA_INDIVIDUAL = 0;
     private static final int MULTIPLAYER = 1;
-    private static final int OPCIONES_MENU = 2;
-    private static final int SALIR = 3;
-    private static final int OPCIONES = 4; // Cantidad total de botones.
+    private static final int SALIR = 2;
+    private static final int OPCIONES = 3; // Cantidad total de botones.
 
     private int opcionSeleccionada; // Indice de la opcion que el usuario tiene destacada actualmente.
 
@@ -36,11 +34,13 @@ public class MenuPrincipal implements Screen {
     private static final float BUTTON_X_POS = 0.08f; // Posicion X (8% del ancho).
     private static final float BUTTON_Y_PARTIDA_INDIVIDUAL = 0.70f;
     private static final float BUTTON_Y_MULTIPLAYER = 0.55f;
-    private static final float BUTTON_Y_OPCIONES = 0.40f;
-    private static final float BUTTON_Y_SALIR = 0.25f;
+    private static final float BUTTON_Y_SALIR = 0.40f;
 
     private static final float BUTTON_WIDTH_FACTOR = 0.35f; // Ancho base (35% del ancho de pantalla).
     private static final float BUTTON_HEIGHT_FACTOR = 0.10f; // Alto base (10% del alto de pantalla).
+
+    private Texture imgMultijugador;
+    private boolean mostrandoMenuMultijugador = false;
 
     /**
      * Constructor del menu. Carga todas las texturas necesarias desde assets.
@@ -58,8 +58,9 @@ public class MenuPrincipal implements Screen {
         salirMenuC = new Texture(Gdx.files.internal("SalirC.png"));
         multiplayer = new Texture(Gdx.files.internal("Multiplayer.png"));
         multiplayerC = new Texture(Gdx.files.internal("MultiplayerC.png"));
-        opcionesMenu = new Texture(Gdx.files.internal("Opciones.png"));
-        opcionesMenuC = new Texture(Gdx.files.internal("OpcionesC.png"));
+
+        // Cargar imagen de multijugador
+        imgMultijugador = new Texture(Gdx.files.internal("Multijugador.png"));
 
         opcionSeleccionada = PARTIDA_INDIVIDUAL;
     }
@@ -79,15 +80,12 @@ public class MenuPrincipal implements Screen {
         // Seleccion de textura y tamaño segun el estado actual.
         Texture texturaBotonPartidaIndividual = partidaIndividual;
         Texture texturaBotonMultiplayer = multiplayer;
-        Texture texturaBotonOpciones = opcionesMenu;
         Texture texturaBotonSalir = salirMenu;
 
         float anchoPartidaIndividual = baseWidth;
         float alturaPartidaIndividual = baseHeight;
         float anchoMultiplayer = baseWidth;
         float alturaMultiplayer = baseHeight;
-        float anchoOpciones = baseWidth;
-        float alturaOpciones = baseHeight;
         float anchoSalir = baseWidth;
         float alturaSalir = baseHeight;
 
@@ -100,10 +98,6 @@ public class MenuPrincipal implements Screen {
             texturaBotonMultiplayer = multiplayerC;
             anchoMultiplayer *= scaleFactor;
             alturaMultiplayer *= scaleFactor;
-        } else if (opcionSeleccionada == OPCIONES_MENU) {
-            texturaBotonOpciones = opcionesMenuC;
-            anchoOpciones *= scaleFactor;
-            alturaOpciones *= scaleFactor;
         } else if (opcionSeleccionada == SALIR) {
             texturaBotonSalir = salirMenuC;
             anchoSalir *= scaleFactor;
@@ -115,34 +109,39 @@ public class MenuPrincipal implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         // --- MANEJO DE ENTRADAS DEL USUARIO ---
-        if (Gdx.input.isKeyJustPressed(Keys.UP)) {
-            opcionSeleccionada = (opcionSeleccionada - 1 + OPCIONES) % OPCIONES;
-        }
-        if (Gdx.input.isKeyJustPressed(Keys.DOWN)) {
-            opcionSeleccionada = (opcionSeleccionada + 1) % OPCIONES;
-        }
-        if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
-            // Ejecutar accion segun la opcion resaltada.
-            switch (opcionSeleccionada) {
-                case PARTIDA_INDIVIDUAL:
-                    game.setScreen(new PantallaSeleccionPartida(game));
-                    dispose();
-                    break;
-                case MULTIPLAYER:
-                    Gdx.app.log("MENU", "Modo Multijugador no implementado.");
-                    break;
-                case OPCIONES_MENU:
-                    Gdx.app.log("MENU", "Opciones no implementadas.");
-                    break;
-                case SALIR:
-                    Gdx.app.exit();
-                    break;
+        if (mostrandoMenuMultijugador) {
+            if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+                mostrandoMenuMultijugador = false;
+            }
+        } else {
+            if (Gdx.input.isKeyJustPressed(Keys.UP)) {
+                opcionSeleccionada = (opcionSeleccionada - 1 + OPCIONES) % OPCIONES;
+            }
+            if (Gdx.input.isKeyJustPressed(Keys.DOWN)) {
+                opcionSeleccionada = (opcionSeleccionada + 1) % OPCIONES;
+            }
+            if (Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+                // Ejecutar accion segun la opcion resaltada.
+                switch (opcionSeleccionada) {
+                    case PARTIDA_INDIVIDUAL:
+                        game.setScreen(new PantallaSeleccionPartida(game));
+                        dispose();
+                        break;
+                    case MULTIPLAYER:
+                        // Activar overlay multijugador
+                        mostrandoMenuMultijugador = true;
+                        break;
+                    case SALIR:
+                        Gdx.app.exit();
+                        break;
+                }
             }
         }
 
         // --- DIBUJADO ---
         // Asegurarse de que el batch tenga la matriz de proyección correcta (Ortho2D)
-        // Esto es necesario porque Map puede haber dejado el batch con una matriz de cámara
+        // Esto es necesario porque Map puede haber dejado el batch con una matriz de
+        // cámara
         game.batch.getProjectionMatrix().setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         game.batch.begin();
 
@@ -159,20 +158,46 @@ public class MenuPrincipal implements Screen {
         game.batch.draw(texturaBotonMultiplayer, Gdx.graphics.getWidth() * BUTTON_X_POS,
                 Gdx.graphics.getHeight() * BUTTON_Y_MULTIPLAYER, anchoMultiplayer, alturaMultiplayer);
 
-        game.batch.draw(texturaBotonOpciones, Gdx.graphics.getWidth() * BUTTON_X_POS,
-                Gdx.graphics.getHeight() * BUTTON_Y_OPCIONES, anchoOpciones, alturaOpciones);
-
         game.batch.draw(texturaBotonSalir, Gdx.graphics.getWidth() * BUTTON_X_POS,
                 Gdx.graphics.getHeight() * BUTTON_Y_SALIR, anchoSalir, alturaSalir);
+
+        // Dibujar imagen multijugador si es necesario
+        if (mostrandoMenuMultijugador) {
+            // Oscurecer fondo (opcional, pero ayuda a destacar)
+            // game.batch.setColor(0, 0, 0, 0.5f);
+            // game.batch.draw(texturaBlanca, 0, 0, ...); // No tenemos textura blanca aqui
+            // accesible facil,
+            // omitimos el overlay oscuro por simplicidad salvo que carguemos un pixel
+            // blanco.
+
+            float screenW = Gdx.graphics.getWidth();
+            float screenH = Gdx.graphics.getHeight();
+            float imgW = imgMultijugador.getWidth();
+            float imgH = imgMultijugador.getHeight();
+
+            // Escalar si la imagen es mas grande que el 90% de la pantalla
+            float scale = 1.0f;
+            if (imgW > screenW * 0.9f || imgH > screenH * 0.9f) {
+                scale = Math.min(screenW * 0.9f / imgW, screenH * 0.9f / imgH);
+            }
+
+            float finalW = imgW * scale;
+            float finalH = imgH * scale;
+            float x = (screenW - finalW) / 2;
+            float y = (screenH - finalH) / 2;
+
+            game.batch.draw(imgMultijugador, x, y, finalW, finalH);
+        }
 
         game.batch.end();
     }
 
     @Override
     public void show() {
-        // Asegurarse de que el batch tenga la matriz de proyección correcta cuando se muestra esta pantalla
+        // Asegurarse de que el batch tenga la matriz de proyección correcta cuando se
+        // muestra esta pantalla
         game.batch.getProjectionMatrix().setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        
+
         // Reproducir música de menú
         GestorMusica.reproducirMusica(GestorMusica.TipoMusica.MENU);
     }
@@ -205,7 +230,7 @@ public class MenuPrincipal implements Screen {
         salirMenuC.dispose();
         multiplayer.dispose();
         multiplayerC.dispose();
-        opcionesMenu.dispose();
-        opcionesMenuC.dispose();
+        if (imgMultijugador != null)
+            imgMultijugador.dispose();
     }
 }

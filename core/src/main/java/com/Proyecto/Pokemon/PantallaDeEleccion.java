@@ -33,9 +33,10 @@ public class PantallaDeEleccion implements Screen {
         fondo = new Texture(Gdx.files.internal("FondoEleccion.png"));
         titulo = new Texture(Gdx.files.internal("PokemonEleccion.png"));
 
-        ignirrojo = new Texture(Gdx.files.internal("Ignirrojo_Frente_0.png"));
-        aqualisca = new Texture(Gdx.files.internal("Aqualisca_Frente_0.png"));
-        brotalamo = new Texture(Gdx.files.internal("Brotálamo_Frente_0.png"));
+        // Sprites reorganizados en carpetas por Pokémon dentro de assets/pokemon/
+        ignirrojo = new Texture(Gdx.files.internal("pokemon/Ignirrojo/Ignirrojo_Frente_0.png"));
+        aqualisca = new Texture(Gdx.files.internal("pokemon/Aqualisca/Aqualisca_Frente_0.png"));
+        brotalamo = new Texture(Gdx.files.internal("pokemon/Brotálamo/Brotálamo_Frente_0.png"));
     }
 
     @Override
@@ -129,16 +130,16 @@ public class PantallaDeEleccion implements Screen {
         Pokemon seleccionado;
         switch (opcionSeleccionada) {
             case 0:
-                seleccionado = new PokeFuego.Ignirrojo("Macho"); // Representa a Ponyta por ahora
+                seleccionado = new PokeFuego.Ignirrojo("Macho", 2); // Representa a Ponyta por ahora
                 break;
             case 1:
-                seleccionado = new PokeAgua.Aqualisca("Macho"); // Representa a aqualisca por ahora
+                seleccionado = new PokeAgua.Aqualisca("Macho", 2); // Representa a aqualisca por ahora
                 break;
             case 2:
-                seleccionado = new PokePlanta.Brotalamo("Macho"); // Representa a brotalamo por ahora
+                seleccionado = new PokePlanta.Brotalamo("Macho", 2); // Representa a brotalamo por ahora
                 break;
             default:
-                seleccionado = new PokeFuego.Ignirrojo("Macho");
+                seleccionado = new PokeFuego.Ignirrojo("Macho", 2);
         }
         game.setPokemonInicial(seleccionado);
 
@@ -150,13 +151,13 @@ public class PantallaDeEleccion implements Screen {
             jugador.getDestino().set(10, 10);
             // Limpiar inventario para nueva partida
             jugador.getInventario().getMapa().clear();
-            
-            // Agregar el Pokemon inicial a la lista de capturados (equipo/mochila)
+
+            // Agregar el Pokemon inicial al equipo
             try {
-                jugador.getSistemaCaptura().getPokemonsCapturados().clear(); // Limpiar lista de capturados
+                jugador.getEquipo().limpiar(); // Limpiar el equipo para nueva partida
                 // Crear una copia del Pokemon seleccionado y agregarlo
                 Pokemon copiaPokemon = crearCopiaPokemon(seleccionado);
-                jugador.getSistemaCaptura().getPokemonsCapturados().add(copiaPokemon);
+                jugador.getEquipo().agregarPokemon(copiaPokemon);
                 System.out.println("¡" + copiaPokemon.getNombre() + " ha sido agregado a tu equipo!");
             } catch (Exception e) {
                 System.err.println("Error al agregar Pokemon inicial al equipo: " + e.getMessage());
@@ -166,50 +167,56 @@ public class PantallaDeEleccion implements Screen {
             // Si no existe jugador, crear uno nuevo
             jugador = new Player(10, 10);
             game.setJugador(jugador);
-            
+
             // Agregar el Pokemon inicial al equipo
             try {
                 Pokemon copiaPokemon = crearCopiaPokemon(seleccionado);
-                jugador.getSistemaCaptura().getPokemonsCapturados().add(copiaPokemon);
+                jugador.getEquipo().agregarPokemon(copiaPokemon);
                 System.out.println("¡" + copiaPokemon.getNombre() + " ha sido agregado a tu equipo!");
             } catch (Exception e) {
                 System.err.println("Error al agregar Pokemon inicial al equipo: " + e.getMessage());
             }
         }
 
-        // Cargar el mapa
-        game.setScreen(new Mapa(game, "Tiled/MapaVerdePokemon.tmx"));
-        dispose();
+        // Cargar el mapa con manejo de errores
+        try {
+            Mapa nuevoMapa = new Mapa(game, "Tiled/MapaVerdePokemon.tmx");
+            game.setScreen(nuevoMapa);
+            dispose();
+        } catch (Exception e) {
+            System.err.println("¡CRITICAL ERROR al cargar el mapa!");
+            e.printStackTrace();
+            // Opcional: Mostrar algún feedback visual si es posible, o volver al menú
+        }
     }
-    
+
     /**
      * Crea una copia del Pokemon seleccionado para agregarlo al equipo.
      */
     private Pokemon crearCopiaPokemon(Pokemon original) {
         String nombre = original.getNombre();
         String sexo = original.getSexo();
-        
-        // Crear nueva instancia según el tipo
+
         if (original instanceof PokeFuego) {
             if (nombre.equals("Ignirrojo")) {
-                return new PokeFuego.Ignirrojo(sexo);
+                return new PokeFuego.Ignirrojo(sexo, original.getNivel());
             } else if (nombre.equals("Volcárex") || nombre.equals("Volcarex")) {
-                return new PokeFuego.Volcarex(sexo);
+                return new PokeFuego.Volcarex(sexo, original.getNivel());
             }
         } else if (original instanceof PokeAgua) {
             if (nombre.equals("Aqualisca")) {
-                return new PokeAgua.Aqualisca(sexo);
+                return new PokeAgua.Aqualisca(sexo, original.getNivel());
             } else if (nombre.equals("Mareónix") || nombre.equals("Mareonix")) {
-                return new PokeAgua.Mareonix(sexo);
+                return new PokeAgua.Mareonix(sexo, original.getNivel());
             }
         } else if (original instanceof PokePlanta) {
             if (nombre.equals("Brotálamo") || nombre.equals("Brotalamo")) {
-                return new PokePlanta.Brotalamo(sexo);
+                return new PokePlanta.Brotalamo(sexo, original.getNivel());
             } else if (nombre.equals("Floravelo")) {
-                return new PokePlanta.Floravelo(sexo);
+                return new PokePlanta.Floravelo(sexo, original.getNivel());
             }
         }
-        
+
         // Fallback: devolver el original si no se encuentra
         return original;
     }

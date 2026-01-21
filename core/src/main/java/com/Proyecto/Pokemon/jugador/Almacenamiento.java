@@ -55,6 +55,19 @@ public class Almacenamiento {
         System.out.println("-------------------------\n");
     }
 
+    public void eliminarObjeto(String nombre, int cantidad) {
+        if (inventario.containsKey(nombre)) {
+            int cantidadActual = inventario.get(nombre);
+            int nuevaCantidad = cantidadActual - cantidad;
+            if (nuevaCantidad <= 0) {
+                inventario.remove(nombre);
+            } else {
+                inventario.put(nombre, nuevaCantidad);
+            }
+            System.out.println("[Inventario] -" + cantidad + " " + nombre);
+        }
+    }
+
     /**
      * Devuelve el mapa de inventario para su lectura.
      */

@@ -41,7 +41,7 @@ public class Batalla {
         // Usar ataque aleatorio por defecto
         return realizarAtaque(null);
     }
-    
+
     /**
      * Realiza un ataque específico del Pokemon atacante al defensor.
      * Si el nombreAtaque es null, usa un ataque aleatorio.
@@ -71,7 +71,7 @@ public class Batalla {
         // Determinar el ataque según el tipo del Pokemon
         // Si nombreAtaque es null o vacío, usar ataque aleatorio
         boolean usarAtaqueAleatorio = (nombreAtaque == null || nombreAtaque.isEmpty());
-        
+
         if (atacante instanceof PokeFuego) {
             PokeFuego fuego = (PokeFuego) atacante;
             if (usarAtaqueAleatorio || nombreAtaque.equals("Lanzallamas")) {
@@ -135,12 +135,8 @@ public class Batalla {
         StringBuilder mensaje = new StringBuilder();
         mensaje.append(atacante.getNombre()).append(" usa ").append(nombreAtaqueUsado)
                 .append(" contra ").append(defensor.getNombre())
-                .append(" causando ").append(danio).append(" puntos de daño")
+                .append(" del Jugador, causando ").append(danio).append(" puntos de daño")
                 .append(mensajeEfectividad).append("\n");
-
-        mensaje.append("Vida restante de ").append(defensor.getNombre())
-                .append(": ").append(defensor.getVida()).append("/")
-                .append(defensor.getVidaMaxima());
 
         // Verificar si el defensor fue derrotado
         if (!defensor.estaVivo()) {
@@ -166,7 +162,7 @@ public class Batalla {
             defensor = pokemon2;
         }
     }
-    
+
     /**
      * Consume el turno del atacante actual cambiando al siguiente turno.
      * Útil cuando se usa un objeto (como pokebola) que consume el turno sin atacar.
@@ -240,7 +236,7 @@ public class Batalla {
     public Pokemon getPokemon2() {
         return pokemon2;
     }
-    
+
     /**
      * Cambia el Pokemon del jugador durante la batalla.
      * Asume que pokemon1 es siempre el del jugador.
@@ -250,13 +246,20 @@ public class Batalla {
     public void cambiarPokemonJugador(Pokemon nuevoPokemon) {
         Pokemon viejoPokemon = pokemon1;
         pokemon1 = nuevoPokemon;
-        
-        // Actualizar referencias de atacante y defensor si estaban usando el pokemon anterior
+
+        // Actualizar referencias de atacante y defensor si estaban usando el pokemon
+        // anterior
         if (atacante == viejoPokemon) {
             atacante = nuevoPokemon;
         }
         if (defensor == viejoPokemon) {
             defensor = nuevoPokemon;
+        }
+
+        // Si se cambia de Pokemon, la batalla continua (reseteamos la bandera de fin)
+        // Esto es critico si se cambia despues de que el anterior se debilito.
+        if (pokemon1.estaVivo() && pokemon2.estaVivo()) {
+            batallaTerminada = false;
         }
     }
 }

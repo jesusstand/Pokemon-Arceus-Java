@@ -3,7 +3,8 @@ package com.Proyecto.Pokemon.sistema;
 import com.Proyecto.Pokemon.pokemon.Pokemon;
 import com.Proyecto.Pokemon.jugador.Almacenamiento;
 import com.Proyecto.Pokemon.excepciones.ExcepcionPokebolaInsuficiente;
-import java.util.ArrayList;
+import com.Proyecto.Pokemon.excepciones.ExcepcionEquipoLleno;
+import com.Proyecto.Pokemon.jugador.EquipoPokemon;
 import java.util.HashMap;
 import java.util.List;
 
@@ -13,31 +14,40 @@ import java.util.List;
  */
 public class CapturaPokemon {
     private Almacenamiento inventario;
-    private List<Pokemon> pokemonsCapturados;
+    private EquipoPokemon equipo;
 
     /**
      * Constructor de CapturaPokemon.
      *
      * @param inventario Inventario del jugador que contiene las pokebolas.
+     * @param equipo     Equipo del jugador donde se guardarán los Pokémon.
      */
-    public CapturaPokemon(Almacenamiento inventario) {
+    public CapturaPokemon(Almacenamiento inventario, EquipoPokemon equipo) {
         this.inventario = inventario;
-        this.pokemonsCapturados = new ArrayList<>();
+        this.equipo = equipo;
     }
 
     /**
      * Intenta capturar un Pokemon usando una pokebola del inventario.
      * La probabilidad de captura aumenta cuando el Pokemon tiene menos vida.
      *
-     * @param pokemon Pokemon que se intenta capturar.
-     * @param tipoPokebola Tipo de pokebola a usar ("Pokeball", "PokeballEXP", "PokeballCura").
+     * @param pokemon      Pokemon que se intenta capturar.
+     * @param tipoPokebola Tipo de pokebola a usar ("Pokeball", "PokeballEXP",
+     *                     "PokeballCura").
      * @return true si la captura fue exitosa, false si falló.
-     * @throws ExcepcionPokebolaInsuficiente Si no hay pokebolas del tipo solicitado.
+     * @throws ExcepcionPokebolaInsuficiente Si no hay pokebolas del tipo
+     *                                       solicitado.
+     * @throws ExcepcionEquipoLleno Si el equipo ya tiene 6 pokémones.
      */
-    public boolean intentarCapturar(Pokemon pokemon, String tipoPokebola) throws ExcepcionPokebolaInsuficiente {
+    public boolean intentarCapturar(Pokemon pokemon, String tipoPokebola) throws ExcepcionPokebolaInsuficiente, ExcepcionEquipoLleno {
         // Verificar que el Pokemon esté vivo
         if (!pokemon.estaVivo()) {
             throw new IllegalArgumentException("No se puede capturar un Pokemon derrotado.");
+        }
+
+        // Verificar que el equipo no esté lleno (máximo 6 pokémones)
+        if (equipo.estaLleno()) {
+            throw new ExcepcionEquipoLleno("Tu equipo está lleno. No puedes capturar más pokémones. Elimina uno primero (presiona R para ver tu equipo).");
         }
 
         // Verificar que haya pokebolas disponibles
@@ -66,9 +76,9 @@ public class CapturaPokemon {
         inv.put(tipoPokebola, cantidadPokebolas - 1);
 
         if (capturado) {
-            // Agregar Pokemon a la lista de capturados
-            pokemonsCapturados.add(pokemon);
-            System.out.println("¡" + pokemon.getNombre() + " fue capturado exitosamente!");
+            // Agregar Pokemon al equipo (ya verificamos que hay espacio antes)
+            equipo.agregarPokemon(pokemon);
+            System.out.println("¡" + pokemon.getNombre() + " fue capturado y añadido al equipo!");
             return true;
         } else {
             System.out.println("La pokebola falló. " + pokemon.getNombre() + " escapó.");
@@ -86,10 +96,6 @@ public class CapturaPokemon {
         switch (tipoPokebola) {
             case "Pokeball":
                 return 1.0; // Efectividad normal
-            case "PokeballEXP":
-                return 1.2; // 20% más efectiva
-            case "PokeballCura":
-                return 1.3; // 30% más efectiva
             default:
                 return 1.0;
         }
@@ -99,7 +105,7 @@ public class CapturaPokemon {
      * Obtiene la probabilidad de captura sin intentar capturar.
      * Útil para mostrar al jugador las chances antes de intentar.
      *
-     * @param pokemon Pokemon a evaluar.
+     * @param pokemon      Pokemon a evaluar.
      * @param tipoPokebola Tipo de pokebola a usar.
      * @return Probabilidad de captura (0.0 a 1.0).
      */
@@ -117,7 +123,7 @@ public class CapturaPokemon {
      * @return Lista de Pokemon capturados.
      */
     public List<Pokemon> getPokemonsCapturados() {
-        return pokemonsCapturados;
+        return equipo.getPokemons();
     }
 
     /**
@@ -126,19 +132,19 @@ public class CapturaPokemon {
      * @return Cantidad de Pokemon capturados.
      */
     public int getCantidadPokemonsCapturados() {
-        return pokemonsCapturados.size();
+        return equipo.getCantidad();
     }
 
     /**
      * Muestra información de todos los Pokemon capturados.
      */
     public void mostrarPokemonsCapturados() {
-        System.out.println("\n=== POKEMON CAPTURADOS ===");
-        if (pokemonsCapturados.isEmpty()) {
-            System.out.println("No has capturado ningún Pokemon aún.");
+        System.out.println("\n=== POKEMON EN EQUIPO ===");
+        if (equipo.getCantidad() == 0) {
+            System.out.println("No tienes ningún Pokemon en tu equipo aún.");
         } else {
-            for (int i = 0; i < pokemonsCapturados.size(); i++) {
-                Pokemon p = pokemonsCapturados.get(i);
+            for (int i = 0; i < equipo.getCantidad(); i++) {
+                Pokemon p = equipo.getPokemon(i);
                 System.out.println((i + 1) + ". " + p.toString());
             }
         }

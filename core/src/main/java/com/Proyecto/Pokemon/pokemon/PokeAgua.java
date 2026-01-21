@@ -7,20 +7,29 @@ import com.Proyecto.Pokemon.ataques.IAtaqueAgua;
  * Implementa la interfaz IAtaqueAgua con ataques únicos de tipo Agua.
  */
 public class PokeAgua extends Pokemon implements IAtaqueAgua {
-    private int poderAgua; // Poder base de ataques de agua
+    private int poderAgua;
+    private int basePoderAgua;
 
     /**
      * Constructor de Pokemon de tipo Agua.
-     *
-     * @param nombre     Nombre del Pokemon.
-     * @param peso       Peso en kilogramos.
-     * @param sexo       Sexo del Pokemon.
-     * @param vidaMaxima Puntos de salud máximos.
-     * @param poderAgua  Poder base para ataques de agua.
      */
+    public PokeAgua(String nombre, double peso, String sexo, int vidaMaxima, int poderAgua, int nivel) {
+        super(nombre, peso, sexo, vidaMaxima, Tipo.AGUA, nivel);
+        this.basePoderAgua = poderAgua;
+        calcularEstadisticas();
+    }
+
+    // Constructor compatibilidad
     public PokeAgua(String nombre, double peso, String sexo, int vidaMaxima, int poderAgua) {
-        super(nombre, peso, sexo, vidaMaxima, Tipo.AGUA);
-        this.poderAgua = poderAgua;
+        this(nombre, peso, sexo, vidaMaxima, poderAgua, 1);
+    }
+
+    @Override
+    protected void calcularEstadisticas() {
+        super.calcularEstadisticas();
+        // Poder aumenta 10% por nivel extra
+        double porcentajePoder = 1.0 + (0.10 * (nivel - 1));
+        this.poderAgua = (int) (basePoderAgua * porcentajePoder);
     }
 
     @Override
@@ -46,7 +55,11 @@ public class PokeAgua extends Pokemon implements IAtaqueAgua {
      */
     public static class Aqualisca extends PokeAgua {
         public Aqualisca(String sexo) {
-            super("Aqualisca", 25.5, sexo, 80, 35);
+            super("Aqualisca", 25.5, sexo, 80, 35, 1);
+        }
+
+        public Aqualisca(String sexo, int nivel) {
+            super("Aqualisca", 25.5, sexo, 80, 35, nivel);
         }
     }
 
@@ -55,7 +68,11 @@ public class PokeAgua extends Pokemon implements IAtaqueAgua {
      */
     public static class Mareonix extends PokeAgua {
         public Mareonix(String sexo) {
-            super("Mareónix", 32.0, sexo, 95, 40);
+            super("Mareónix", 32.0, sexo, 95, 40, 1);
+        }
+
+        public Mareonix(String sexo, int nivel) {
+            super("Mareónix", 32.0, sexo, 95, 40, nivel);
         }
     }
 }

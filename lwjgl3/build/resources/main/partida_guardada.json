@@ -1,0 +1,11 @@
+{
+"posicionX": 9,
+"posicionY": 13,
+"inventario": {
+	"Madera": 1
+},
+"nombrePokemon": "Aqualisca",
+"tipoPokemon": "AGUA",
+"generoPokemon": "Macho",
+"mapaActual": "MapaVerdePokemon"
+}

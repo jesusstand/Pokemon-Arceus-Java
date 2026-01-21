@@ -3,7 +3,6 @@ package com.Proyecto.Pokemon.gui;
 import com.Proyecto.Pokemon.Main;
 import com.Proyecto.Pokemon.NPC;
 import com.Proyecto.Pokemon.PantallaBatalla;
-import com.Proyecto.Pokemon.PantallaPokemonCapturados;
 import com.Proyecto.Pokemon.jugador.Player;
 import com.Proyecto.Pokemon.pokemon.Pokemon;
 import com.Proyecto.Pokemon.pokemon.PokeFuego;
@@ -14,6 +13,7 @@ import com.Proyecto.Pokemon.sistema.GestorMusica;
 import com.Proyecto.Pokemon.excepciones.ExcepcionInventarioLleno;
 import com.Proyecto.Pokemon.excepciones.ExcepcionMaterialesInsuficientes;
 import com.Proyecto.Pokemon.excepciones.ExcepcionPokebolaInsuficiente;
+import com.Proyecto.Pokemon.excepciones.ExcepcionEquipoLleno;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
@@ -35,6 +35,7 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.maps.tiled.objects.TiledMapTileMapObject;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import com.badlogic.gdx.utils.Array;
 
 /**
@@ -57,8 +58,12 @@ public class Mapa implements Screen {
     // --- ESTADO DE PAUSA ---
     private boolean pausado = false;
     private boolean inventarioAbierto = false;
+    private boolean menuEquipoAbierto = false; // Estado para menï¿½ equipo lateral (R)
     private int opcionPausa = 0; // 0: Volver, 1: Opciones, 2: Salir
     private boolean saliendoAlMenu = false; // Bandera para indicar que estamos saliendo
+    private boolean modoSoltar = false;
+    private boolean botonSoltarSeleccionado = false; // Foco en el botón soltar (arriba de la lista)
+    private Texture texSoltarLetra, texBotonSoltar, texBotonSoltarColor;
     // --- ESTADO CRAFTEO ---
     private boolean menuCrafteoAbierto = false;
     private int opcionCrafteo = 1; // 0, 1, 2
@@ -71,7 +76,10 @@ public class Mapa implements Screen {
     private Texture texCraftear, texCraftearC;
     private Texture marcoPlastico, marcoGoma, marcoMadera, marcoSlot, marcoSlotC;
     private Texture texPokeCura, texPokeExp, texPokeball;
-    private BitmapFont font;
+    private BitmapFont font, fontPequeña;
+    private HashMap<String, Texture> marcosPokemon = new HashMap<>();
+    private HashMap<String, Texture> marcosPokemonVacio = new HashMap<>();
+    private int equipoSeleccionado = 0; // Para cerrar el menu o navegar si fuera necesario
 
     // --- ESTADO ERROR UI ---
     private boolean mostrandoError = false;
@@ -81,13 +89,20 @@ public class Mapa implements Screen {
     // --- ESTADO DIALOGO ---
     private boolean mostrandoDialogo = false;
     private String textoActual = "";
+    private boolean mostrandoPokedex = false;
 
     // --- ESTADO ENCUENTRO POKEMON ---
     private SpawnPokemon spawnPokemon;
     private Pokemon pokemonSalvaje;
     private boolean enEncuentro = false;
     private CapturaPokemon sistemaCaptura;
-    private GestorSpritesPokemon gestorSprites;
+    private GestorSpritesPokemon gestorSprites = new GestorSpritesPokemon();
+
+    // --- ESTADO CURACIÓN CENTRO POKÉMON ---
+    private boolean menuCuracionAbierto = false;
+    private int opcionCuracion = 0; // 0: Aceptar, 1: Cancelar
+    private Texture texCurarEquipo, texBotonAceptar, texBotonAceptarBase, texBotonCancelar, texBotonCancelarBase;
+    private Texture marcoInfo;
 
     private static final int OPCION_REANUDAR = 0;
     private static final int OPCION_SALIR_MENU = 1;
@@ -185,18 +200,81 @@ public class Mapa implements Screen {
         return false;
     }
 
-    private void curarEquipoSilencioso() {
-        System.out.println("Equipo Silencioso");
+    /**
+     * Verifica si el jugador está en la zona de curación del Centro Pokémon.
+     * 
+     * @return true si está en la zona de curación, false en caso contrario.
+     */
+    private boolean estaEnZonaCuracion() {
+        MapLayer capaZonas = mapaTiled.getLayers().get("ZonasEspeciales");
+        if (capaZonas == null) {
+            return false;
+        }
+
+        // Usamos el centro del jugador para una detección más precisa
+        float centroX = jugador.getX() + 0.5f;
+        float centroY = jugador.getY() + 0.5f;
+
+        for (MapObject objeto : capaZonas.getObjects()) {
+            if (objeto instanceof RectangleMapObject) {
+                String nombreObjeto = objeto.getName();
+                // Buscamos objetos con nombre "Zona curacion" o "ZonaCuracion" (insensible a
+                // mayúsculas)
+                if (nombreObjeto != null &&
+                        (nombreObjeto.equalsIgnoreCase("Zona curacion") ||
+                                nombreObjeto.equalsIgnoreCase("ZonaCuracion"))) {
+                    Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
+                    // Escalamos el área al tamaño del mundo
+                    float rectX = rect.x * UNIT_SCALE;
+                    float rectY = rect.y * UNIT_SCALE;
+                    float rectW = rect.width * UNIT_SCALE;
+                    float rectH = rect.height * UNIT_SCALE;
+
+                    // Verificamos si el centro del jugador está dentro de la zona
+                    if (centroX >= rectX && centroX <= rectX + rectW &&
+                            centroY >= rectY && centroY <= rectY + rectH) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**
-     * Verifica si el jugador está en un tile de hierba.
-     *
-     * @param x Coordenada X del jugador.
-     * @param y Coordenada Y del jugador.
-     * @return true si está en hierba, false si no.
+     * Cura todos los Pokémon del jugador al máximo.
+     * Incluye el Pokémon inicial y todos los Pokémon capturados.
      */
+    private void curarEquipoCompleto() {
+        int pokemonsCurados = 0;
+
+        // 2. Curar todos los Pokémon del equipo
+        List<Pokemon> pokemonsEquipo = jugador.getEquipo().getPokemons();
+        for (Pokemon pokemon : pokemonsEquipo) {
+            if (pokemon != null) {
+                pokemon.curar();
+                pokemonsCurados++;
+                System.out.println("✓ " + pokemon.getNombre() + " curado exitosamente");
+            }
+        }
+
+        // Mostrar mensaje de confirmación
+        if (pokemonsCurados > 0) {
+            mostrarDialogo("¡Todos tus Pokémon han sido curados exitosamente!");
+        } else {
+            mostrarDialogo("No tienes Pokémon para curar.");
+        }
+    }
+
     public boolean estaEnHierba(float x, float y) {
+        // 1. Verificar por rectángulos de zona (LogicaHierba)
+        for (Rectangle zona : zonasHierba) {
+            if (zona.contains(x, y)) {
+                return true;
+            }
+        }
+
+        // 2. Verificar por propiedades de tiles
         int cellX = (int) x;
         int cellY = (int) y;
 
@@ -213,7 +291,7 @@ public class Mapa implements Screen {
                         return true;
                     }
 
-                    // Tambi├⌐n verificar si la capa tiene la propiedad de hierba
+                    // También verificar si la capa tiene la propiedad de hierba
                     String tipoCapa = null;
                     if (layer.getProperties().containsKey("tipo")) {
                         tipoCapa = layer.getProperties().get("tipo", String.class);
@@ -222,7 +300,6 @@ public class Mapa implements Screen {
                         return true;
                     }
                 }
-
             }
         }
         return false;
@@ -235,70 +312,82 @@ public class Mapa implements Screen {
      * @param y Coordenada Y del jugador.
      */
     public void verificarEncuentroPokemon(float x, float y) {
-        // Solo verificar si no estamos ya en un encuentro
-        if (enEncuentro) {
-            return;
-        }
-
-        // Verificar si est├í en hierba
-        if (estaEnHierba(x, y)) {
-            // Intentar spawn de Pokemon
-            Pokemon pokemonEncontrado = spawnPokemon.verificarEncuentro();
-            if (pokemonEncontrado != null) {
-                pokemonSalvaje = pokemonEncontrado;
-                enEncuentro = true;
-                System.out.println("┬íUn " + pokemonSalvaje.getNombre() + " salvaje apareci├│!");
-            }
-        }
+        // Se ha movido la lógica al render() con temporizador de 5 segundos
     }
 
     /**
      * Detecta si el jugador esta en un portal y cambia de mapa.
+     * Usa el centro del jugador para una detección más precisa.
      *
      * @param x Coordenada X del jugador.
      * @param y Coordenada Y del jugador.
      */
     public void revisarPortales(float x, float y) {
-        // Buscamos la capa de portales de forma más flexible (insensible a mayúsculas).
-        MapLayer capaObjetos = null;
+        // 1. Revisar Portales Normales
         for (MapLayer layer : mapaTiled.getLayers()) {
-            if (layer.getName().equalsIgnoreCase("Portal") || layer.getName().equalsIgnoreCase("Portales")) {
-                capaObjetos = layer;
-                break;
+            String layerName = layer.getName().toLowerCase();
+            if (layerName.contains("portal")) {
+                for (MapObject objeto : layer.getObjects()) {
+                    if (objeto instanceof RectangleMapObject) {
+                        Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
+                        if (checkCollision(x, y, rect)) {
+                            String siguienteMapa = objeto.getProperties().get("Destino", String.class);
+                            if (siguienteMapa != null) {
+
+                                String mapaActual = nombreMapa;
+                                if (mapaActual.endsWith(".tmx")) {
+                                    mapaActual = mapaActual.substring(0, mapaActual.length() - 4);
+                                }
+                                cambiarMapa(siguienteMapa, mapaActual);
+                                return;
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        if (capaObjetos != null) {
-            for (MapObject objeto : capaObjetos.getObjects()) {
+        // 2. Revisar Jefes (Capa PeleaBoss)
+        MapLayer bossLayer = mapaTiled.getLayers().get("PeleaBoss");
+        if (bossLayer != null) {
+            for (MapObject objeto : bossLayer.getObjects()) {
                 if (objeto instanceof RectangleMapObject) {
                     Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
+                    if (checkCollision(x, y, rect)) {
+                        String tipoPelea = objeto.getProperties().get("Pelea", String.class);
+                        if (tipoPelea == null)
+                            return;
 
-                    float rectX = rect.x * UNIT_SCALE;
-                    float rectY = rect.y * UNIT_SCALE;
-                    float rectW = rect.width * UNIT_SCALE;
-                    float rectH = rect.height * UNIT_SCALE;
-
-                    if (x >= rectX && x <= rectX + rectW && y >= rectY && y <= rectY + rectH) {
-                        String siguienteMapa = objeto.getProperties().get("Destino", String.class);
-                        if (siguienteMapa != null) {
-                            if (!siguienteMapa.endsWith(".tmx")) {
-                                siguienteMapa += ".tmx";
+                        Pokemon boss = null;
+                        if (tipoPelea.equalsIgnoreCase("boss1")) {
+                            if (!jugador.getPokedex().esPokedexCompleta()) {
+                                mostrarError(
+                                        "Pokedex Incompleta: Completa los puntos de investigacion para poder avanzar");
+                                return;
                             }
-                            // Agregar prefijo Tiled/ si no está presente
-                            if (!siguienteMapa.startsWith("Tiled/")) {
-                                siguienteMapa = "Tiled/" + siguienteMapa;
+                            boss = new com.Proyecto.Pokemon.pokemon.PokeDragon.Aethergon("Macho", 10);
+                        } else if (tipoPelea.equalsIgnoreCase("boss2")) {
+                            boss = new com.Proyecto.Pokemon.pokemon.PokeDragon.Dracornea("Hembra", 8);
+                        }
+
+                        if (boss != null) {
+                            // Iniciar batalla
+                            // Usamos miPokemon del jugador (el primero vivo)
+                            Pokemon miPokemon = null;
+                            for (Pokemon p : jugador.getEquipo().getPokemons()) {
+                                if (p.estaVivo()) {
+                                    miPokemon = p;
+                                    break;
+                                }
                             }
 
-                            // Al cambiar de mapa, le pasamos el nombre del mapa actual para que el nuevo
-                            // sepa donde colocarnos (en el portal que apunta hacia AQUI)
-                            String mapaActual = nombreMapa;
-                            // Quitamos extension si la tiene para comparaciones mas limpias
-                            if (mapaActual.endsWith(".tmx")) {
-                                mapaActual = mapaActual.substring(0, mapaActual.length() - 4);
+                            if (miPokemon != null) {
+                                System.out.println("Iniciando batalla contra Boss: " + boss.getNombre());
+                                game.setScreen(new PantallaBatalla(game, this, miPokemon, boss, false)); // false =
+                                                                                                         // salvaje/boss
+                                enEncuentro = false; // Asegurar estado
+                                return;
                             }
-
-                            game.setScreen(new Mapa(game, siguienteMapa, mapaActual));
-                            dispose();
                         }
                     }
                 }
@@ -306,38 +395,36 @@ public class Mapa implements Screen {
         }
     }
 
-    public void revisarPortalCentro(float playerX, float playerY) {
-        MapLayer capa = mapaTiled.getLayers().get("PortalCentro");
-        if (capa == null)
-            return;
-
-        for (MapObject objeto : capa.getObjects()) {
-            if (objeto instanceof RectangleMapObject) {
-                Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
-
-                // CONVERSIÓN: Tiled usa píxeles (ej. 160), Player usa tiles (ej. 10)
-                // Dividimos por 16 (o el tamaño de tu tile) para que los números hablen el
-                // mismo idioma
-                float escala = 16f;
-                float rX = rect.x / escala;
-                float rY = rect.y / escala;
-                float rW = rect.width / escala;
-                float rH = rect.height / escala;
-
-                // Verificamos la colisión con un pequeño margen de error (0.1f)
-                if (playerX >= rX - 0.1f && playerX <= (rX + rW) + 0.1f &&
-                        playerY >= rY - 0.1f && playerY <= (rY + rH) + 0.1f) {
-
-                    String destino = objeto.getProperties().get("Destino", String.class);
-                    if (destino != null) {
-                        cambiarMapa(destino, "Entrada");
-                        return;
-                    }
-                }
-            }
-        }
+    /**
+     * Verifica si el jugador colisiona con un rectángulo dado.
+     * 
+     * @param playerX Posición X del jugador.
+     * @param playerY Posición Y del jugador.
+     * @param rect    Rectángulo con el que se verifica la colisión.
+     * @return true si hay colisión, false en caso contrario.
+     */
+    private boolean checkCollision(float playerX, float playerY, Rectangle rect) {
+        float rectX = rect.x * UNIT_SCALE;
+        float rectY = rect.y * UNIT_SCALE;
+        float rectW = rect.width * UNIT_SCALE;
+        float rectH = rect.height * UNIT_SCALE;
+        return playerX < rectX + rectW && playerX + 1 > rectX && playerY < rectY + rectH && playerY + 1 > rectY;
     }
 
+    /**
+     * @deprecated Usar revisarPortales() que ahora es genérico.
+     */
+    public void revisarPortalCentro(float playerX, float playerY) {
+        revisarPortales(playerX, playerY);
+    }
+
+    /**
+     * Cambia el mapa actual por uno nuevo.
+     * 
+     * @param nombreArchivo Nombre del archivo .tmx del nuevo mapa.
+     * @param spawnPoint    Nombre del punto de spawn o mapa anterior para
+     *                      determinar la posición inicial.
+     */
     private void cambiarMapa(String nombreArchivo, String spawnPoint) {
         if (!nombreArchivo.endsWith(".tmx"))
             nombreArchivo += ".tmx";
@@ -363,177 +450,143 @@ public class Mapa implements Screen {
             return;
         }
 
-        if (this.nombreMapa != null && this.nombreMapa.contains("MapaCentro")) {
-            camera.position.set(20f, 7.5f, 0);
-        } else {
-            // En cualquier otro mapa, la cámara sigue al jugador
-            camera.position.set(jugador.getX(), jugador.getY(), 0);
-        }
-
-        boolean enHierba = false;
-        for (Rectangle zona : zonasHierba) {
-            if (zona.contains(jugador.getX(), jugador.getY())) {
-                enHierba = true;
-                break;
-            }
-        }
-
-        // LÓGICA DE HIERBA
-        for (Rectangle zona : zonasHierba) {
-            if (zona.contains(jugador.getX(), jugador.getY())) {
-                enHierba = true;
-                break;
-            }
-        }
-
-        if (enHierba && jugador.isMoviendose()) {
-            grassTimer += delta;
-            if ((int) grassTimer > (int) (grassTimer - delta)) {
-                System.out.println("Segundos en hierba: " + (int) grassTimer);
-            }
-
-            if (grassTimer >= 5f) {
-                System.out.println("Inicia pelea pokemon!");
-                grassTimer = 0;
-
-                // Iniciar Batalla
-                // Crear un pokemon rival aleatorio (usando SpawnPokemon que ya existe en esta
-                // clase)
-                Pokemon rival = spawnPokemon.verificarEncuentro();
-                if (rival == null) {
-                    // Si no hay encuentro, usar un pokemon por defecto
-                    rival = new PokeFuego.Ignirrojo("Macho");
-                }
-
-                // Obtener pokemon del jugador
-                Pokemon miPokemon = game.getPokemonInicial();
-                if (miPokemon == null) {
-                    miPokemon = new PokeFuego.Ignirrojo("Macho"); // Fallback
-                }
-
-                // Cambiar a pantalla de batalla
-                // Importante: Pasamos 'this' (Mapa) para poder volver
-                game.setScreen(new PantallaBatalla(game, this, miPokemon, rival));
-            }
-        } else if (!enHierba) {
-            grassTimer = 0;
-        }
-
-        // Al pulsar ESCAPE alternamos la pausa.
+        // Manejo de teclas globales (fuera de los menús)
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
-            if (!inventarioAbierto && !menuCrafteoAbierto) { // Evitar abrir pausa si estamos crafteando
+            if (!inventarioAbierto && !menuCrafteoAbierto && !menuEquipoAbierto) {
                 pausado = !pausado;
-            } else if (menuCrafteoAbierto) {
-                // Opcional: ESCAPE en crafteo cierra el menu (redundante con logica interna,
-                // pero seguridad)
+            } else if (inventarioAbierto || menuCrafteoAbierto) {
+                inventarioAbierto = false;
                 menuCrafteoAbierto = false;
             }
         }
-
-        // Al pulsar E alternamos el inventario.
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.E)) {
             if (!pausado) {
                 if (menuCrafteoAbierto) {
                     menuCrafteoAbierto = false;
-                    inventarioAbierto = true; // Volver al inv
+                    inventarioAbierto = true;
                 } else {
                     inventarioAbierto = !inventarioAbierto;
                 }
             }
         }
 
-        // Al pulsar P abrir pantalla de Pokemon capturados.
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
-            if (!pausado && !inventarioAbierto && !menuCrafteoAbierto && !enEncuentro) {
-                // Abrir directamente la pantalla de Pokemon capturados
-                game.setScreen(new PantallaPokemonCapturados(game, this));
-            }
-        }
-
+        // Lógica de pausa y otros menús
         if (pausado) {
             actualizarEntradaPausa();
         } else if (mostrandoDialogo) {
             actualizarEntradaDialogo();
+        } else if (mostrandoPokedex) {
+            actualizarEntradaPokedex();
         } else if (enEncuentro) {
             actualizarEntradaEncuentro();
         } else if (menuCrafteoAbierto) {
             actualizarEntradaCrafteo();
         } else if (inventarioAbierto) {
             actualizarEntradaInventario();
+        } else if (menuEquipoAbierto) {
+            actualizarEntradaEquipo();
+        } else if (menuCuracionAbierto) {
+            actualizarEntradaCuracion();
         } else {
-            // --- DENTRO DEL MÉTODO RENDER, EN EL BLOQUE 'ELSE' DEL JUGADOR ---
+            // Lógica normal de juego
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.R)) {
+                menuEquipoAbierto = true;
+                equipoSeleccionado = 0;
+                preCargarMarcosEquipo();
+            }
+
             jugador.update(delta, this);
 
-            // 1. LÓGICA DE CURACIÓN (Centro Pokemon)
-            MapLayer capaZonas = mapaTiled.getLayers().get("ZonasEspeciales");
-            if (capaZonas != null) {
-                for (MapObject objeto : capaZonas.getObjects()) {
-                    if (objeto instanceof RectangleMapObject && "ZonaCuracion".equals(objeto.getName())) {
-                        Rectangle rect = ((RectangleMapObject) objeto).getRectangle();
-                        // Escalamos el área al tamaño del mundo
-                        Rectangle areaCuracion = new Rectangle(rect.x * UNIT_SCALE, rect.y * UNIT_SCALE,
-                                rect.width * UNIT_SCALE, rect.height * UNIT_SCALE);
+            // 1. Lógica de curación
+            if (estaEnZonaCuracion() && Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.C)) {
+                curarEquipoCompleto();
+            }
 
-                        if (areaCuracion.overlaps(new Rectangle(jugador.getX(), jugador.getY(), 1, 1))) {
-                            curarEquipoSilencioso(); // Este método debe usar inicial.curar() como vimos antes
-                        }
+            // 2. Lógica de encuentros en hierba
+            if (!enEncuentro && estaEnHierba(jugador.getX(), jugador.getY()) && jugador.isMoviendose()) {
+                grassTimer += delta;
+                if (grassTimer >= 5.0f) {
+                    grassTimer = 0;
+                    Pokemon rival = spawnPokemon.verificarEncuentro();
+                    if (rival != null) {
+                        pokemonSalvaje = rival;
+                        enEncuentro = true;
                     }
                 }
             }
 
-            // 2. LÓGICA DE ENCUENTROS (Hierba)
-            if (estaEnHierba(jugador.getX(), jugador.getY()) && jugador.isMoviendose()) {
-                grassTimer += delta;
-                if (grassTimer > 1.0f) { // Cada 1 segundo de movimiento
-                    grassTimer = 0;
-                    verificarEncuentroPokemon(jugador.getX(), jugador.getY());
+            // Iniciar Batalla si hubo encuentro
+            if (enEncuentro && !saliendoAlMenu) {
+                Pokemon rival = pokemonSalvaje;
+                if (rival == null)
+                    rival = new com.Proyecto.Pokemon.pokemon.PokeFuego.Ignirrojo("Macho");
+                Pokemon miPokemon = null;
+                // Buscar el primer pokemon vivo del equipo
+                for (int i = 0; i < jugador.getEquipo().getCantidad(); i++) {
+                    Pokemon p = jugador.getEquipo().getPokemon(i);
+                    if (p.estaVivo()) {
+                        miPokemon = p;
+                        break;
+                    }
                 }
+
+                // Fallback si todos debilitados
+                if (miPokemon == null) {
+                    if (jugador.getEquipo().getCantidad() > 0) {
+                        miPokemon = jugador.getEquipo().getPokemon(0);
+                    } else {
+                        miPokemon = game.getPokemonInicial();
+                        if (miPokemon == null)
+                            miPokemon = new com.Proyecto.Pokemon.pokemon.PokeFuego.Ignirrojo("Macho");
+                    }
+                }
+
+                game.setScreen(new PantallaBatalla(game, this, miPokemon, rival));
+                enEncuentro = false;
+                return;
             }
         }
 
+        // Actualización de la cámara
         float halfWidth = camera.viewportWidth / 2f;
         float halfHeight = camera.viewportHeight / 2f;
-
         if (this.nombreMapa != null && this.nombreMapa.contains("MapaCentro")) {
-            camera.position.set(7f, 6f, 0);
-            camera.zoom = 1.5f;
+            camera.position.set(anchoMapa / 2f, altoMapa / 2f, 0);
+            camera.zoom = 1.0f;
         } else {
-            // En cualquier otro mapa, la cámara sigue al jugador
             float camX = MathUtils.clamp(jugador.getX() + 0.5f, halfWidth, anchoMapa - halfWidth);
             float camY = MathUtils.clamp(jugador.getY() + 0.5f, halfHeight, altoMapa - halfHeight);
             camera.position.set(camX, camY, 0);
-
+            camera.zoom = 1.0f;
         }
-
         camera.update();
 
-        // Limpiar la pantalla.
+        // Limpiar la pantalla
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Renderizar mapa.
+        // Renderizar mapa
         renderer.setView(camera);
         renderer.render();
 
-        // Renderizar jugador.
+        // Renderizar jugador y NPCs
         game.batch.setProjectionMatrix(camera.combined);
         game.batch.begin();
         jugador.draw(game.batch);
-
-        // Renderizar NPCs
         if (npcs != null) {
             for (NPC npc : npcs) {
                 npc.render(game.batch);
             }
         }
-
         game.batch.end();
 
-        // DIBUJAR OVERLAY DE PAUSA
+        // DIBUJAR OVERLAYS
         if (pausado) {
             dibujarMenuPausa();
         } else if (mostrandoDialogo) {
             dibujarDialogo();
+        } else if (mostrandoPokedex) {
+            dibujarPokedex();
         } else if (enEncuentro) {
             dibujarEncuentroPokemon();
             if (mostrandoError)
@@ -546,9 +599,16 @@ public class Mapa implements Screen {
             dibujarInventario();
             if (mostrandoError)
                 dibujarCuadroError(delta);
+        } else if (menuEquipoAbierto) {
+            dibujarMenuEquipoLateral();
+            if (mostrandoError) {
+                dibujarCuadroError(delta);
+            }
+        } else if (menuCuracionAbierto) {
+            dibujarMenuCuracion();
         } else {
             if (mostrandoError)
-                dibujarCuadroError(delta); // Mostrar error en juego normal (ej: pickup)
+                dibujarCuadroError(delta);
         }
     }
 
@@ -567,6 +627,13 @@ public class Mapa implements Screen {
      * mapa anterior.
      */
     public Mapa(Main game, String nombreArchivo, String nombreMapaAnterior) {
+        this(game, nombreArchivo, nombreMapaAnterior, null);
+    }
+
+    /**
+     * Constructor extendido con mensaje inicial.
+     */
+    public Mapa(Main game, String nombreArchivo, String nombreMapaAnterior, String mensajeInicial) {
         this.game = game;
         this.nombreMapa = nombreArchivo;
 
@@ -611,7 +678,7 @@ public class Mapa implements Screen {
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 30, 20);
 
-        // --- NUEVA LÓGICA DE SPAWN CORREGIDA ---
+        // --- LÓGICA DE SPAWN BASADA EN PUNTOS NOMBRADOS EN TILED ---
         float spawnX = 10; // Posición por defecto
         float spawnY = 10;
 
@@ -619,27 +686,114 @@ public class Mapa implements Screen {
             System.out.println("Mapa anterior: " + nombreMapaAnterior);
             System.out.println("Mapa actual: " + nombreMapa);
 
-            if (nombreMapaAnterior.contains("MapaCentro") && nombreMapa.contains("MapaVerdePokemon")) {
-                spawnX = 29f;
-                spawnY = 10f;
-                System.out.println("Regresando del Centro Pokémon. Posicionando en la puerta exterior.");
+            // Normalizar nombres para comparación (quitar "Tiled/" y ".tmx")
+            String anteriorLimpio = nombreMapaAnterior.replace("Tiled/", "").replace(".tmx", "");
+            String actualLimpio = nombreMapa.replace("Tiled/", "").replace(".tmx", "");
+
+            // Determinar qué punto de spawn buscar según el mapa de origen
+            String nombreSpawn = null;
+
+            // Caso especial: Respawn tras derrota
+            if (nombreMapaAnterior.equals("RespawnCentro")) {
+                nombreSpawn = "arriba"; // Punto de spawn correcto dentro del Centro Pokemon
+            }
+            // Caso especial: Bosses (spawn directo)
+            else if (nombreMapaAnterior.equals("abajo3") || nombreMapaAnterior.equals("abajo")) {
+                nombreSpawn = nombreMapaAnterior;
+            }
+            // MapaVerde tiene múltiples puntos de spawn
+            else if (actualLimpio.contains("MapaVerdePokemon")) {
+                if (anteriorLimpio.contains("MapaAzul")) {
+                    nombreSpawn = "abajo1";
+                } else if (anteriorLimpio.contains("MapaCentro")) {
+                    nombreSpawn = "abajo2";
+                }
+            }
+            // MapaAzul
+            else if (actualLimpio.contains("MapaAzul")) {
+                if (anteriorLimpio.contains("MapaCentro")) {
+                    nombreSpawn = "abajo2";
+                } else {
+                    nombreSpawn = "arriba"; // Default for other transitions (e.g. from Verde)
+                }
+            }
+            // MapaCentro
+            else if (actualLimpio.contains("MapaCentro")) {
+                nombreSpawn = "arriba"; // Default entry point
+            }
+
+            // Buscar el punto de spawn en la capa "Sentido"
+            if (nombreSpawn != null) {
+                MapLayer capaSentido = mapaTiled.getLayers().get("Sentido");
+                if (capaSentido != null) {
+                    boolean encontrado = false;
+                    // Recorrer todos los objetos de la capa buscando el que tenga el atributo
+                    // correcto
+                    for (MapObject objeto : capaSentido.getObjects()) {
+                        // Intentamos obtener la propiedad "Sentido" (con mayúscula, como en el
+                        // screenshot del usuario)
+                        String sentidoObjeto = objeto.getProperties().get("Sentido", String.class);
+                        // Si no existe, intentamos "sentido" (minúscula)
+                        if (sentidoObjeto == null) {
+                            sentidoObjeto = objeto.getProperties().get("sentido", String.class);
+                        }
+
+                        // También verificamos si el NOMBRE del objeto coincide, por si acaso
+                        if (sentidoObjeto == null && objeto.getName() != null) {
+                            // Esto es opcional, pero robusto si el usuario olvidó la propiedad pero puso el
+                            // nombre
+                            // sentidoObjeto = objeto.getName();
+                            // Dejémoslo solo por propiedades por ahora para ser estrictos con lo que pidió
+                            // el usuario ("atributos")
+                        }
+
+                        if (sentidoObjeto != null && sentidoObjeto.equalsIgnoreCase(nombreSpawn)) {
+                            spawnX = (Float) objeto.getProperties().get("x") * UNIT_SCALE;
+                            spawnY = (Float) objeto.getProperties().get("y") * UNIT_SCALE;
+                            System.out.println(
+                                    "Spawn encontrado con sentido '" + nombreSpawn + "': " + spawnX + ", " + spawnY);
+                            encontrado = true;
+                            break;
+                        }
+                    }
+                    if (!encontrado) {
+                        System.out.println("ADVERTENCIA: No se encontró objeto con sentido '" + nombreSpawn + "'");
+                    }
+                } else {
+                    System.out.println("ADVERTENCIA: No se encontró la capa 'Sentido'");
+                }
             }
         }
 
-        // Intentamos buscar la capa "Spawn" y el objeto "Entrada"
-        MapLayer capaSpawn = mapaTiled.getLayers().get("Spawn");
-        if (capaSpawn != null) {
-            MapObject puntoEntrada = capaSpawn.getObjects().get("Entrada");
-            if (puntoEntrada != null) {
-                // Leemos las coordenadas en píxeles y las pasamos a unidades de mundo
-                spawnX = (Float) puntoEntrada.getProperties().get("x") * UNIT_SCALE;
-                spawnY = (Float) puntoEntrada.getProperties().get("y") * UNIT_SCALE;
-                System.out.println("Spawn encontrado en 'Entrada': " + spawnX + ", " + spawnY);
-            } else {
-                System.out.println("ADVERTENCIA: No se encontró el objeto 'Entrada' en la capa Spawn.");
+        // Fallback: Si no hay mapa anterior, buscar objeto con sentido "Entrada"
+        if (nombreMapaAnterior == null) {
+            MapLayer capaSentido = mapaTiled.getLayers().get("Sentido");
+            if (capaSentido != null) {
+                boolean encontradoInput = false;
+                // Primero buscamos explícitamente "Entrada"
+                for (MapObject objeto : capaSentido.getObjects()) {
+                    String sentidoObjeto = objeto.getProperties().get("Sentido", String.class);
+                    if (sentidoObjeto == null) {
+                        sentidoObjeto = objeto.getProperties().get("sentido", String.class);
+                    }
+
+                    if (sentidoObjeto != null && sentidoObjeto.equalsIgnoreCase("Entrada")) {
+                        spawnX = (Float) objeto.getProperties().get("x") * UNIT_SCALE;
+                        spawnY = (Float) objeto.getProperties().get("y") * UNIT_SCALE;
+                        System.out.println("Spawn encontrado en 'Entrada': " + spawnX + ", " + spawnY);
+                        encontradoInput = true;
+                        break;
+                    }
+                }
+
+                // Si no encontramos "Entrada", usamos el primer punto de spawn disponible
+                if (!encontradoInput && capaSentido.getObjects().getCount() > 0) {
+                    MapObject primerObjeto = capaSentido.getObjects().get(0);
+                    spawnX = (Float) primerObjeto.getProperties().get("x") * UNIT_SCALE;
+                    spawnY = (Float) primerObjeto.getProperties().get("y") * UNIT_SCALE;
+                    System.out.println("Spawn default encontrado (fallback): " + spawnX + ", " + spawnY);
+                }
             }
-        } else {
-            System.out.println("ADVERTENCIA: No se encontró la capa 'Spawn'.");
         }
 
         // 4. JUGADOR (Actualizar posición)
@@ -694,14 +848,15 @@ public class Mapa implements Screen {
         font.getData().setScale(1.5f);
         font.getRegion().getTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
-        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        Pixmap pixmap = new Pixmap(1, 1,
+                Pixmap.Format.RGBA8888);
         pixmap.setColor(Color.WHITE);
         pixmap.fill();
         pixel = new Texture(pixmap);
         pixmap.dispose();
 
-        texCraftear = new Texture(Gdx.files.internal("Boton de Craftear base.png"));
-        texCraftearC = new Texture(Gdx.files.internal("Boton de Craftear.jpeg"));
+        texCraftear = new Texture(Gdx.files.internal("Boton de Craftear.png")); // Reemplazado por el C
+        texCraftearC = texCraftear; // Mantenemos referencia por compatibilidad
         marcoPlastico = new Texture(Gdx.files.internal("Marco 8bit Plastico.png"));
         marcoGoma = new Texture(Gdx.files.internal("Marco 8bit Goma.png"));
         marcoMadera = new Texture(Gdx.files.internal("Marco 8bit Madera.png"));
@@ -713,6 +868,17 @@ public class Mapa implements Screen {
         marcoCrafteoSeleccionado = new Texture(Gdx.files.internal("MarcoInventariobase.png"));
         marcoCrafteoNoSeleccionado = new Texture(Gdx.files.internal("MarcoInventario2.png"));
 
+        // Texturas Curación
+        texCurarEquipo = new Texture(Gdx.files.internal("CurarEquipo.png"));
+        texBotonAceptar = new Texture(Gdx.files.internal("Boton de Aceptar.png"));
+        texBotonAceptarBase = new Texture(Gdx.files.internal("Boton de Aceptar base.png"));
+        texBotonCancelar = new Texture(Gdx.files.internal("Boton de Cancelar.png"));
+        texBotonCancelarBase = new Texture(Gdx.files.internal("Boton de Cancelar base.png"));
+
+        fontPequeña = new BitmapFont();
+        fontPequeña.getData().setScale(0.8f);
+        marcoInfo = new Texture(Gdx.files.internal("Marco Info1.png"));
+
         // NPC Init
         npcs = new java.util.ArrayList<>();
 
@@ -722,6 +888,7 @@ public class Mapa implements Screen {
                 playerTex.getHeight() / 4);
 
         for (MapLayer layer : mapaTiled.getLayers()) {
+            // Carga de NPCs desde capa de Objetos
             if (layer.getObjects().getCount() > 0) {
                 Iterator<MapObject> iter = layer.getObjects().iterator();
                 while (iter.hasNext()) {
@@ -783,6 +950,7 @@ public class Mapa implements Screen {
                 }
             }
 
+            // Carga de NPCs desde capa de Tiles
             if (layer instanceof TiledMapTileLayer) {
                 TiledMapTileLayer tileLayer = (TiledMapTileLayer) layer;
                 for (int x = 0; x < tileLayer.getWidth(); x++) {
@@ -809,6 +977,12 @@ public class Mapa implements Screen {
                     }
                 }
             }
+        }
+
+        // Mostrar mensaje inicial si existe (AL FINAL DEL CONSTRUCTOR, fuera del bucle
+        // de capas)
+        if (mensajeInicial != null && !mensajeInicial.isEmpty()) {
+            mostrarDialogo(mensajeInicial);
         }
     }
 
@@ -883,6 +1057,21 @@ public class Mapa implements Screen {
                     if ("inicio".equalsIgnoreCase(tipo)) {
                         game.setScreen(new PantallaDeInicio(game));
                         dispose();
+                        return true;
+                    }
+
+                    // PRIORIDAD 1.5: Emergencias (Curación Centro Pokémon)
+                    String emergencias = getPropiedad(cell.getTile(), "Emergencias");
+                    if ("Curar".equalsIgnoreCase(emergencias)) {
+                        menuCuracionAbierto = true;
+                        opcionCuracion = 0; // Por defecto en Aceptar
+                        return true;
+                    }
+
+                    // PRIORIDAD 1.6: Pokedex
+                    String pokedexProp = getPropiedad(cell.getTile(), "Pokedex");
+                    if ("True".equalsIgnoreCase(pokedexProp)) {
+                        mostrandoPokedex = true;
                         return true;
                     }
 
@@ -1157,7 +1346,7 @@ public class Mapa implements Screen {
             }
 
             // Guardar la partida
-            boolean guardado = GestorGuardado.guardarPartida(jugador, pokemonInicial, nombreMapaLimpio);
+            boolean guardado = GestorGuardado.guardarPartida(jugador, nombreMapaLimpio);
             if (guardado) {
                 System.out.println("Partida guardada correctamente. Volviendo al menú principal...");
             } else {
@@ -1188,10 +1377,102 @@ public class Mapa implements Screen {
     }
 
     /**
+     * Gestiona la entrada del teclado cuando se muestra la Pokedex.
+     * Permite salir de la Pokedex presionando ENTER.
+     */
+    private void actualizarEntradaPokedex() {
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
+            mostrandoPokedex = false;
+        }
+    }
+
+    /**
+     * Dibuja la interfaz visual de la Pokedex.
+     * Muestra una cuadrícula con los Pokemon descubiertos y sus puntos de
+     * investigación.
+     */
+    private void dibujarPokedex() {
+        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        game.batch.begin();
+
+        float w = Gdx.graphics.getWidth();
+        float h = Gdx.graphics.getHeight();
+        float anchoMarco = w * 0.8f;
+        float altoMarco = h * 0.8f;
+        float x = (w - anchoMarco) / 2;
+        float y = (h - altoMarco) / 2;
+
+        game.batch.setColor(1, 1, 1, 1);
+        if (marcoInventario != null)
+            game.batch.draw(marcoInventario, x, y, anchoMarco, altoMarco);
+        else
+            game.batch.draw(pixel, x, y, anchoMarco, altoMarco);
+
+        String[] nombresPokedex = { "Ignirrojo", "Brotálamo", "Aqualisca", "Volcárex", "Floravelo", "Mareónix" };
+
+        // Ajustamos el área de contenido para "unir más las imágenes" (reducir
+        // dispersión)
+        float contentW = anchoMarco * 0.85f;
+        float contentH = altoMarco * 0.85f;
+        float contentX = x + (anchoMarco - contentW) / 2;
+        float contentY = y + (altoMarco - contentH) / 2;
+
+        float slotW = contentW / 3;
+        float slotH = contentH / 2;
+
+        for (int i = 0; i < 6; i++) {
+            int row = (i < 3) ? 0 : 1;
+            int col = i % 3;
+
+            // Ajustar Y segun la fila: la superior (0) usa el centro, la inferior (1) usa
+            // la base.
+            float drawY = (row == 0) ? (contentY + slotH) : (contentY + 50);
+            float drawX = contentX + col * slotW;
+
+            String nombreDisplay = nombresPokedex[i];
+
+            // Usamos el nombre tal cual para buscar el sprite, ya que los archivos tienen
+            // acentos
+            int puntos = jugador.getPuntosInvestigacion(nombreDisplay);
+
+            Texture sprite = gestorSprites.obtenerSpriteFrente(nombreDisplay, 0);
+
+            float spriteSize = 90; // Más pequeña
+            // Centrar sprite en el slot y bajarlo un poco (ajuste relativo al slot)
+            float spriteX = drawX + (slotW - spriteSize) / 2;
+            float spriteY = drawY + (slotH - spriteSize) / 2 + 10;
+
+            if (sprite != null) {
+                if (puntos < 10) {
+                    game.batch.setColor(0, 0, 0, 1);
+                } else {
+                    game.batch.setColor(1, 1, 1, 1);
+                }
+                game.batch.draw(sprite, spriteX, spriteY, spriteSize, spriteSize);
+                game.batch.setColor(1, 1, 1, 1);
+            }
+
+            fontPequeña.setColor(Color.WHITE);
+            // Centrar nombre (SIN NUMERO) abajo del centro del pokemon
+            float textY = spriteY - 15;
+
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutName = new com.badlogic.gdx.graphics.g2d.GlyphLayout(
+                    fontPequeña, nombreDisplay);
+            fontPequeña.draw(game.batch, nombreDisplay, spriteX + (spriteSize - layoutName.width) / 2, textY);
+
+            String puntosInfo = puntos + "/10";
+            com.badlogic.gdx.graphics.g2d.GlyphLayout layoutPoints = new com.badlogic.gdx.graphics.g2d.GlyphLayout(
+                    fontPequeña, puntosInfo);
+            fontPequeña.draw(game.batch, puntosInfo, spriteX + (spriteSize - layoutPoints.width) / 2, textY - 25);
+        }
+
+        game.batch.end();
+    }
+
+    /**
      * Dibuja los elementos visuales del menu de pausa.
      */
     private void dibujarMenuPausa() {
-        // Usamos una proyeccion estatica para el menu (coordenadas de pantalla).
         // Sin embargo, para mantenerlo simple y centrado, usaremos una proporcion
         // local.
         float pantallaAncho = Gdx.graphics.getWidth();
@@ -1216,17 +1497,88 @@ public class Mapa implements Screen {
         float x = pantallaAncho * 0.05f; // Margen del 5% desde la izquierda
         float centroY = pantallaAlto / 2f;
 
+        float separacion = 30f;
         // Boton Reanudar (arriba).
         Texture texReanudar = (opcionPausa == OPCION_REANUDAR) ? pausaVolverC : pausaVolver;
-        game.batch.draw(texReanudar, x, centroY + btnH / 2, btnW, btnH);
+        game.batch.draw(texReanudar, x, centroY + separacion, btnW, btnH);
 
-        // Boton Salir al Men├║ Principal (abajo).
+        // Boton Salir al Menú Principal (abajo).
         Texture texSalir = (opcionPausa == OPCION_SALIR_MENU) ? pausaSalirC : pausaSalir;
-        game.batch.draw(texSalir, x, centroY - btnH / 2, btnW, btnH);
+        game.batch.draw(texSalir, x, centroY - btnH - separacion, btnW, btnH);
 
         game.batch.end();
 
         // Restauramos la proyeccion de la camara para el siguiente frame.
+        game.batch.setProjectionMatrix(camera.combined);
+    }
+
+    /**
+     * Gestiona la entrada del teclado cuando se abre el menú de curación.
+     */
+    private void actualizarEntradaCuracion() {
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.LEFT)) {
+            opcionCuracion = 0; // Aceptar
+        } else if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.RIGHT)) {
+            opcionCuracion = 1; // Cancelar
+        }
+
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)
+                || Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.Z)) {
+            if (opcionCuracion == 0) {
+                // Aceptar curación
+                curarEquipoCompleto();
+                menuCuracionAbierto = false;
+            } else {
+                // Cancelar
+                menuCuracionAbierto = false;
+            }
+        }
+
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)
+                || Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.X)) {
+            menuCuracionAbierto = false;
+        }
+    }
+
+    /**
+     * Dibuja los elementos visuales del menú de curación.
+     */
+    private void dibujarMenuCuracion() {
+        float sw = Gdx.graphics.getWidth();
+        float sh = Gdx.graphics.getHeight();
+
+        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, sw, sh);
+        game.batch.begin();
+
+        // 1. Fondo Oscuro semi-transparente para resaltar el menu
+        game.batch.setColor(0, 0, 0, 0.4f);
+        game.batch.draw(pixel, 0, 0, sw, sh);
+        game.batch.setColor(Color.WHITE);
+
+        // 2. Imagen de fondo CurarEquipo (centrada)
+        float curarW = sw * 0.5f;
+        float curarH = (curarW / texCurarEquipo.getWidth()) * texCurarEquipo.getHeight();
+        float curarX = (sw - curarW) / 2f;
+        float curarY = (sh - curarH) / 2f + 50; // Un poco arriba del centro
+
+        game.batch.draw(texCurarEquipo, curarX, curarY, curarW, curarH);
+
+        // 3. Botones uno al lado del otro
+        float btnW = sw * 0.2f;
+        float btnH = sh * 0.08f;
+        float btnY = curarY - btnH - 30; // Un poco debajo de la imagen
+        float spacing = 20;
+        float startX = (sw - (btnW * 2 + spacing)) / 2f;
+
+        // Botón Aceptar
+        Texture texAceptar = (opcionCuracion == 0) ? texBotonAceptarBase : texBotonAceptar;
+        game.batch.draw(texAceptar, startX, btnY, btnW, btnH);
+
+        // Botón Cancelar
+        Texture texCancelar = (opcionCuracion == 1) ? texBotonCancelarBase : texBotonCancelar;
+        game.batch.draw(texCancelar, startX + btnW + spacing, btnY, btnW, btnH);
+
+        game.batch.end();
         game.batch.setProjectionMatrix(camera.combined);
     }
 
@@ -1305,15 +1657,311 @@ public class Mapa implements Screen {
                     pbTex = texPokeball;
 
                 if (pbTex != null) {
-                    float iconSize = slotW * 0.5f;
-                    game.batch.setColor(1, 1, 1, 1);
-                    game.batch.draw(pbTex, slotX + (slotW - iconSize) / 2f, currentY + (slotH - iconSize) / 2f + 5,
-                            iconSize, iconSize);
+                    float iconSize = slotW * 0.5f; // Reducido de 0.7f a 0.5f
+                    game.batch.draw(pbTex, slotX + (slotW - iconSize) / 2f, currentY + (slotH - iconSize) / 2f,
+                            iconSize,
+                            iconSize);
+                }
+            } else {
+                // Dibujar interrogacion si no se tiene
+                // (Opcional)
+            }
 
+            // Dibujar Cantidad
+            if (cantidadpb > 0) {
+                font.setColor(Color.BLACK);
+                font.getData().setScale(1.2f);
+                font.draw(game.batch, "x" + cantidadpb, slotX + 10, currentY + 30);
+            }
+        }
+
+        game.batch.setColor(1, 1, 1, 1);
+        game.batch.end();
+        game.batch.setProjectionMatrix(camera.combined);
+    }
+
+    /**
+     * Gestiona la entrada del teclado en el menú de equipo lateral.
+     * Permite navegar por la lista de Pokemon, soltarlos o cerrar el menú.
+     */
+    private void actualizarEntradaEquipo() {
+        int numPokemons = jugador.getEquipo().getPokemons().size();
+
+        // 1. MODO SOLTAR: El jugador selecciona a quien echar
+        if (modoSoltar) {
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.W)
+                    || Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.UP)) {
+                equipoSeleccionado = (equipoSeleccionado - 1 + numPokemons) % numPokemons;
+            }
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.S)
+                    || Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.DOWN)) {
+                equipoSeleccionado = (equipoSeleccionado + 1) % numPokemons;
+            }
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
+                // Eliminar Pokemon
+                if (numPokemons <= 1) {
+                    // No debería pasar si validamos al entrar, pero por seguridad
+                    mostrarError("No puedes soltar pokemones teniendo uno solo");
+                    modoSoltar = false;
+                    return;
+                }
+                Pokemon eliminado = jugador.getEquipo().getPokemon(equipoSeleccionado);
+                jugador.getEquipo().eliminarPokemon(equipoSeleccionado);
+                System.out.println("Has soltado a " + (eliminado != null ? eliminado.getNombre() : "el pokémon") + ".");
+
+                // Ajustar indice si es necesario
+                if (equipoSeleccionado >= jugador.getEquipo().getCantidad()) {
+                    equipoSeleccionado = Math.max(0, jugador.getEquipo().getCantidad() - 1);
+                }
+
+                // Verificar si debemos salir del modo (menos de 2 pokemons)
+                if (jugador.getEquipo().getCantidad() < 2) {
+                    modoSoltar = false;
+                }
+            }
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)
+                    || Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.R)) {
+                modoSoltar = false;
+            }
+            return;
+        }
+
+        // 2. MODO NORMAL SELECCIONANDO BOTON SOLTAR
+        if (botonSoltarSeleccionado) {
+            // Volver a la lista de pokemon
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.A)
+                    || Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.LEFT)) {
+                botonSoltarSeleccionado = false;
+                equipoSeleccionado = 0; // Volver al primero
+            }
+
+            // Entrar al modo soltar
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER)) {
+                if (numPokemons < 2) {
+                    mostrarError("No puedes soltar pokemones teniendo uno solo");
+                } else {
+                    modoSoltar = true;
+                    botonSoltarSeleccionado = false;
+                    equipoSeleccionado = 0;
+                }
+            }
+            if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.R)) {
+                menuEquipoAbierto = false;
+            }
+            return;
+        }
+
+        // 3. MODO NORMAL LISTA DE POKEMONS
+        // Navegacion vertical en la lista
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.W)
+                || Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.UP)) {
+            equipoSeleccionado = (equipoSeleccionado - 1 + numPokemons) % numPokemons;
+        }
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.S)
+                || Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.DOWN)) {
+            equipoSeleccionado = (equipoSeleccionado + 1) % numPokemons;
+        }
+
+        // Ir al boton soltar (derecha)
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.D)
+                || Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.RIGHT)) {
+            botonSoltarSeleccionado = true;
+        }
+
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.R)) {
+            menuEquipoAbierto = false;
+        }
+    }
+
+    /**
+     * Obtiene una lista de movimientos representativos para un Pokemon dado.
+     * 
+     * @param p El Pokemon del cual obtener los movimientos.
+     * @return Una cadena de texto con los nombres de los movimientos.
+     */
+    private String getMovimientosString(com.Proyecto.Pokemon.pokemon.Pokemon p) {
+        if (p instanceof com.Proyecto.Pokemon.pokemon.PokeFuego)
+            return "Lanzallamas, Llamarada";
+        if (p instanceof com.Proyecto.Pokemon.pokemon.PokeAgua)
+            return "Hidrochorro, Burbuja";
+        if (p instanceof com.Proyecto.Pokemon.pokemon.PokePlanta)
+            return "Hoja Afilada, Absorber";
+        if (p instanceof com.Proyecto.Pokemon.pokemon.PokeDragon)
+            return "Rayo Draconico, Cola Dragon";
+        return "Placaje";
+    }
+
+    /**
+     * Carga en memoria las texturas de los marcos para el equipo Pokemon actual.
+     * Evita cargar texturas repetidas.
+     */
+    private void preCargarMarcosEquipo() {
+        java.util.List<Pokemon> team = jugador.getEquipo().getPokemons();
+        for (Pokemon p : team) {
+            String nombre = p.getNombre().toLowerCase()
+                    .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                    .replace("ñ", "n");
+
+            if (!marcosPokemon.containsKey(nombre)) {
+                try {
+                    // Marcos organizados por Pokémon:
+                    // assets/pokemon/<NombrePokemon>/Marco 8bit <NombreCap>.png
+                    String folderPokemon = "pokemon/" + p.getNombre() + "/";
+                    String nombreCap = nombre.substring(0, 1).toUpperCase() + nombre.substring(1); // sin acentos
+
+                    String marcoPath = folderPokemon + "Marco 8bit " + nombreCap + ".png";
+                    String marcoVacioPath = folderPokemon + "Marco 8bit " + nombreCap + " vacio.png";
+
+                    if (Gdx.files.internal(marcoPath).exists()) {
+                        marcosPokemon.put(nombre, new Texture(Gdx.files.internal(marcoPath)));
+                    }
+                    if (Gdx.files.internal(marcoVacioPath).exists()) {
+                        marcosPokemonVacio.put(nombre, new Texture(Gdx.files.internal(marcoVacioPath)));
+                    }
+                } catch (Exception e) {
+                    System.err.println("No se pudo cargar marco para: " + p.getNombre());
+                }
+            }
+        }
+    }
+
+    /**
+     * Dibuja el equipo pokemon en el lado IZQUIERDO (Estilo Batalla).
+     * Muestra la lista de Pokemon actuales, sus vidas y detalles del seleccionado.
+     */
+    private void dibujarMenuEquipoLateral() {
+        if (texBotonSoltar == null) {
+            try {
+                texBotonSoltar = new Texture(Gdx.files.internal("Marco 8bit.png"));
+                texBotonSoltarColor = new Texture(Gdx.files.internal("Marco 8bit a color.png"));
+                texSoltarLetra = new Texture(Gdx.files.internal("SoltarPokemoLetra.png"));
+            } catch (Exception e) {
+                System.err.println("Error cargando texturas de soltar: " + e.getMessage());
+            }
+        }
+
+        float sw = Gdx.graphics.getWidth();
+        float sh = Gdx.graphics.getHeight();
+
+        game.batch.getProjectionMatrix().setToOrtho2D(0, 0, sw, sh);
+        game.batch.begin();
+
+        // Fondo oscuro (Estilo Batalla)
+        game.batch.setColor(0, 0, 0, 0.8f);
+        game.batch.draw(pixel, 0, 0, sw, sh);
+        game.batch.setColor(Color.WHITE);
+
+        java.util.List<com.Proyecto.Pokemon.pokemon.Pokemon> equipo = jugador.getEquipo().getPokemons();
+        int numPokemons = equipo.size();
+
+        // Parametros layout IZQUIERDA
+        float slotW = 240, slotH = 85;
+        float startX = 30; // A la izquierda
+        float startY = sh - 110;
+        float spacingY = 10;
+
+        for (int i = 0; i < 6; i++) {
+            float x = startX;
+            float y = startY - i * (slotH + spacingY);
+
+            if (i < numPokemons) {
+                com.Proyecto.Pokemon.pokemon.Pokemon p = equipo.get(i);
+                String nombreNorm = p.getNombre().toLowerCase()
+                        .replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+                        .replace("ñ", "n");
+
+                // Elección de marco segun seleccion
+                Texture marco;
+                if (i == equipoSeleccionado && !botonSoltarSeleccionado) {
+                    // Seleccionado: Marco lleno (y no estamos en el boton soltar, o estamos en modo
+                    // soltar seleccionando)
+                    marco = marcosPokemon.get(nombreNorm);
+                } else {
+                    // No seleccionado: Marco vacío
+                    marco = marcosPokemonVacio.get(nombreNorm);
+                }
+                game.batch.setColor(Color.WHITE);
+
+                if (marco == null)
+                    marco = marcoSlot; // Fallback
+
+                game.batch.draw(marco, x, y, slotW, slotH);
+
+                // Vida en texto
+                fontPequeña.setColor(p.estaVivo() ? Color.WHITE : Color.RED);
+                fontPequeña.draw(game.batch, "HP: " + p.getVida() + "/" + p.getVidaMaxima(), x + slotW * 0.45f,
+                        y + slotH * 0.4f);
+            } else {
+                // Slot genérico vacío
+                game.batch.setColor(Color.WHITE);
+                game.batch.draw(marcoSlot, x, y, slotW, slotH);
+            }
+        }
+        game.batch.setColor(Color.WHITE);
+
+        // PANEL DE INFORMACION (A LA DERECHA) - USA MARCO INFO
+        if (numPokemons > 0) {
+            float infoW = sw * 0.55f;
+            float infoH = sh * 0.75f;
+            float infoX = sw - infoW - 30;
+            float infoY = (sh - infoH) / 2f - 40;
+
+            if (modoSoltar) {
+                // --- MODO SOLTAR ---
+                // NO DIBUJAR: Button, MarcoInfo, Stats
+                // SOLO DIBUJAR: Imagen warning y Texto
+
+                if (texSoltarLetra != null) {
+                    float imgW = infoW * 0.7f;
+                    float imgH = (imgW / texSoltarLetra.getWidth()) * texSoltarLetra.getHeight();
+                    game.batch.draw(texSoltarLetra, infoX + (infoW - imgW) / 2, infoY + (infoH - imgH) / 2, imgW, imgH);
+                }
+
+            } else {
+                // --- MODO NORMAL ---
+                // 1. Boton Soltar
+                float btnW = 160;
+                float btnH = 50;
+                float btnX = infoX + infoW - btnW;
+                float btnY = infoY + infoH;
+
+                Texture btnTex = (botonSoltarSeleccionado) ? texBotonSoltarColor : texBotonSoltar;
+                if (btnTex != null) {
+                    game.batch.draw(btnTex, btnX, btnY, btnW, btnH);
+                }
+
+                // 2. Marco Info
+                game.batch.draw(marcoInfo, infoX, infoY, infoW, infoH);
+
+                // 3. Stats
+                // Validar seleccion
+                if (equipoSeleccionado < numPokemons) {
+                    com.Proyecto.Pokemon.pokemon.Pokemon sel = equipo.get(equipoSeleccionado);
+
+                    // Sprite del Pokemon seleccionado
+                    Texture pTex = gestorSprites.obtenerSprite(sel.getNombre());
+                    if (pTex != null) {
+                        float spriteSize = infoH * 0.4f;
+                        game.batch.draw(pTex, infoX + (infoW - spriteSize) / 2f, infoY + infoH - spriteSize - 50,
+                                spriteSize,
+                                spriteSize);
+                    }
+
+                    // Datos del Pokemon
+                    font.getData().setScale(1.1f);
                     font.setColor(Color.WHITE);
-                    font.getData().setScale(1.2f);
-                    font.draw(game.batch, "x" + cantidadpb, slotX + slotW - 40, currentY + 30);
-                    font.getData().setScale(1.5f);
+                    float textX = infoX + 60;
+                    float textY = infoY + infoH * 0.58f;
+                    float spacingV = 35;
+
+                    font.draw(game.batch, "Nombre: " + sel.getNombre(), textX, textY);
+                    font.draw(game.batch, "Nivel: " + sel.getNivel(), textX, textY - spacingV);
+                    font.draw(game.batch, "PS: " + sel.getVida() + "/" + sel.getVidaMaxima(), textX,
+                            textY - spacingV * 2);
+                    font.draw(game.batch, "Género: " + sel.getSexo(), textX, textY - spacingV * 3);
+                    font.draw(game.batch, "Tipo: " + sel.getTipoString(), textX, textY - spacingV * 4);
+                    font.draw(game.batch, "Peso: " + sel.getPeso() + " kg", textX, textY - spacingV * 5);
+                    font.draw(game.batch, "Movimientos: " + getMovimientosString(sel), textX, textY - spacingV * 6);
                 }
             }
         }
@@ -1322,16 +1970,25 @@ public class Mapa implements Screen {
         game.batch.setProjectionMatrix(camera.combined);
     }
 
-    private void dibujarBotonTop(int tipo, float x, float y, float w, float h, boolean activo) {
-        Texture tex = null;
-        if (tipo == INV_CRAFTEAR)
-            tex = activo ? texCraftearC : texCraftear;
-
-        if (tex != null) {
-            game.batch.draw(tex, x, y, w, h);
-        }
+    /**
+     * Helper simplificado para dibujar botones superiores del inventario.
+     */
+    private void dibujarBotonTop(int id, float x, float y, float w, float h, boolean activo) {
+        // Siempre usar la versión 'C' (color) ya que el usuario pidió eliminar la otra
+        Texture tex = texCraftearC;
+        game.batch.draw(tex, x, y, w, h);
     }
 
+    /**
+     * Dibuja un cuadro de item en el inventario.
+     * 
+     * @param nombre   Nombre del item.
+     * @param cantidad Cantidad actual en el inventario.
+     * @param x        Posición X.
+     * @param y        Posición Y.
+     * @param w        Ancho del cuadro.
+     * @param h        Alto del cuadro.
+     */
     private void dibujarItemBox(String nombre, int cantidad, float x, float y, float w, float h) {
         Texture tex = null;
         if (cantidad > 0) {
@@ -1367,6 +2024,15 @@ public class Mapa implements Screen {
         }
     }
 
+    /**
+     * Dibuja un slot de inventario (para Pokeballs).
+     * 
+     * @param x         Posición X.
+     * @param y         Posición Y.
+     * @param w         Ancho.
+     * @param h         Alto.
+     * @param resaltado Si true, usa la textura de color (resaltado).
+     */
     private void dibujarSlot(float x, float y, float w, float h, boolean resaltado) {
         Texture tex = resaltado ? marcoSlotC : marcoSlot;
         game.batch.draw(tex, x, y, w, h);
@@ -1403,6 +2069,8 @@ public class Mapa implements Screen {
                     pokemonSalvaje = null;
                 }
             } catch (ExcepcionPokebolaInsuficiente e) {
+                mostrarError(e.getMessage());
+            } catch (ExcepcionEquipoLleno e) {
                 mostrarError(e.getMessage());
             }
         }
@@ -1546,6 +2214,12 @@ public class Mapa implements Screen {
             marcoCrafteoNoSeleccionado.dispose();
         if (gestorSprites != null)
             gestorSprites.dispose();
+        if (texSoltarLetra != null)
+            texSoltarLetra.dispose();
+        if (texBotonSoltar != null)
+            texBotonSoltar.dispose();
+        if (texBotonSoltarColor != null)
+            texBotonSoltarColor.dispose();
     }
 
     /**
@@ -1656,6 +2330,13 @@ public class Mapa implements Screen {
         }
     }
 
+    /**
+     * Intenta craftear el item seleccionado en el menú de crafteo.
+     * Verifica si hay materiales suficientes y espacio en el inventario.
+     * 
+     * @throws ExcepcionMaterialesInsuficientes Si no hay suficientes materiales.
+     * @throws ExcepcionInventarioLleno         Si el inventario está lleno.
+     */
     private void intentarCrafteo() throws ExcepcionMaterialesInsuficientes, ExcepcionInventarioLleno {
         HashMap<String, Integer> inv = jugador.getInventario().getMapa();
         String i1 = "", i2 = "";
@@ -1717,12 +2398,22 @@ public class Mapa implements Screen {
         }
     }
 
+    /**
+     * Muestra un mensaje de error en pantalla durante un tiempo limitado.
+     * 
+     * @param mensaje El mensaje de error a mostrar.
+     */
     private void mostrarError(String mensaje) {
         this.mostrandoError = true;
         this.mensajeError = mensaje;
         this.tiempoMensajeError = 3.0f; // 3 segundos
     }
 
+    /**
+     * Dibuja el cuadro de error activo si hay uno.
+     * 
+     * @param delta Tiempo transcurrido para actualizar el temporizador.
+     */
     private void dibujarCuadroError(float delta) {
         if (!mostrandoError)
             return;
@@ -1739,7 +2430,7 @@ public class Mapa implements Screen {
         game.batch.begin();
 
         // Cuadro Rojo de Error
-        float w = sw * 0.6f;
+        float w = sw * 0.9f;
         float h = sh * 0.2f;
         float x = (sw - w) / 2f;
         float y = (sh - h) / 2f;
@@ -1819,25 +2510,59 @@ public class Mapa implements Screen {
             if (tipo != null && (tipo.toLowerCase().contains("enemigo") || "Enemigo".equalsIgnoreCase(tipo))) {
                 System.out.println("Iniciando batalla tras dialogo con enemigo...");
 
-                // Intentar spawnear un pokemon aleatorio (como en la hierba)
-                // Usamos un bucle para garantizar que el NPC SIEMPRE tenga un pokemon.
+                // Generar Pokemon de NPC (Nivel 4-6)
+                java.util.Random rnd = new java.util.Random();
+                int nivelNPC = rnd.nextInt(3) + 4; // 4, 5, 6
+                int pokeIndex = rnd.nextInt(6); // 0-5
+
                 Pokemon rival = null;
-                int intentos = 0;
-                while (rival == null && intentos < 10) {
-                    rival = spawnPokemon.verificarEncuentro();
-                    intentos++;
+                switch (pokeIndex) {
+                    case 0:
+                        rival = new com.Proyecto.Pokemon.pokemon.PokeFuego.Ignirrojo("Macho", nivelNPC);
+                        break;
+                    case 1:
+                        rival = new com.Proyecto.Pokemon.pokemon.PokeFuego.Volcarex("Macho", nivelNPC);
+                        break;
+                    case 2:
+                        rival = new com.Proyecto.Pokemon.pokemon.PokeAgua.Aqualisca("Macho", nivelNPC);
+                        break;
+                    case 3:
+                        rival = new com.Proyecto.Pokemon.pokemon.PokeAgua.Mareonix("Macho", nivelNPC);
+                        break;
+                    case 4:
+                        rival = new com.Proyecto.Pokemon.pokemon.PokePlanta.Brotalamo("Macho", nivelNPC);
+                        break;
+                    case 5:
+                        rival = new com.Proyecto.Pokemon.pokemon.PokePlanta.Floravelo("Macho", nivelNPC);
+                        break;
+                    default:
+                        rival = new com.Proyecto.Pokemon.pokemon.PokeFuego.Ignirrojo("Macho", nivelNPC);
+                        break;
                 }
 
-                if (rival == null) {
-                    rival = new com.Proyecto.Pokemon.pokemon.PokeFuego.Ignirrojo("Macho");
+                Pokemon miPokemon = null;
+                // Buscar el primer pokemon vivo del equipo
+                for (int i = 0; i < jugador.getEquipo().getCantidad(); i++) {
+                    Pokemon p = jugador.getEquipo().getPokemon(i);
+                    if (p.estaVivo()) {
+                        miPokemon = p;
+                        break;
+                    }
                 }
 
-                Pokemon miPokemon = game.getPokemonInicial();
+                // Fallback si todos debilitados (no debería pasar normalmente)
                 if (miPokemon == null) {
-                    miPokemon = new com.Proyecto.Pokemon.pokemon.PokeFuego.Ignirrojo("Macho");
+                    if (jugador.getEquipo().getCantidad() > 0) {
+                        miPokemon = jugador.getEquipo().getPokemon(0);
+                    } else {
+                        miPokemon = game.getPokemonInicial();
+                        if (miPokemon == null) {
+                            miPokemon = new com.Proyecto.Pokemon.pokemon.PokeFuego.Ignirrojo("Macho");
+                        }
+                    }
                 }
 
-                game.setScreen(new PantallaBatalla(game, this, miPokemon, rival));
+                game.setScreen(new PantallaBatalla(game, this, miPokemon, rival, true));
             }
             npcActual = null; // Resetear tras cerrar
         }
@@ -1895,6 +2620,7 @@ public class Mapa implements Screen {
 
         // DIBUJAR TEXTO
         game.batch.setColor(Color.WHITE);
+        font.setColor(Color.WHITE); // Asegurar color blanco
         float oldScaleX = font.getData().scaleX;
         float oldScaleY = font.getData().scaleY;
         font.getData().setScale(2.5f); // Escala ajustada a 1280x720
@@ -1912,4 +2638,5 @@ public class Mapa implements Screen {
         // Restaurar matriz para el resto del juego
         game.batch.setProjectionMatrix(camera.combined);
     }
+
 }

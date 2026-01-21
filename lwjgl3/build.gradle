@@ -54,6 +54,10 @@ run {
   //setIgnoreExitValue(true)
 
   if (os.contains('mac')) jvmArgs += "-XstartOnFirstThread"
+  // Suprimir advertencias de métodos restringidos y deprecados de Java moderno
+  jvmArgs += "--enable-native-access=ALL-UNNAMED"
+  jvmArgs += "--add-opens=java.base/java.lang=ALL-UNNAMED"
+  jvmArgs += "--add-opens=java.base/sun.misc=ALL-UNNAMED"
 }
 
 jar {

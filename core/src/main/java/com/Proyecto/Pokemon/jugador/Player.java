@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.math.Vector2;
+import com.Proyecto.Pokemon.sistema.Pokedex;
 
 /**
  * Representa al jugador controlado por el usuario.
@@ -33,6 +34,8 @@ public class Player {
 
     private Almacenamiento inventario;
     private CapturaPokemon sistemaCaptura;
+    private EquipoPokemon equipo;
+    private Pokedex pokedex;
 
     /**
      * Constructor del jugador.
@@ -44,7 +47,9 @@ public class Player {
         this.posicion = new Vector2(x, y);
         this.destino = new Vector2(x, y);
         this.inventario = new Almacenamiento();
-        this.sistemaCaptura = new CapturaPokemon(this.inventario);
+        this.equipo = new EquipoPokemon();
+        this.sistemaCaptura = new CapturaPokemon(this.inventario, this.equipo);
+        this.pokedex = new Pokedex();
         texture = new Texture(Gdx.files.internal("player_sprite.png"));
 
         // Configuracion de la hoja de sprites (asumimos 4x4).
@@ -86,9 +91,6 @@ public class Player {
                 moviendose = false;
                 // Comprobamos si hay algun portal en la nueva posicion.
                 mapa.revisarPortales(posicion.x, posicion.y);
-                mapa.revisarPortalCentro(posicion.x, posicion.y);
-                // Verificar si está en hierba y puede aparecer un Pokemon
-                mapa.verificarEncuentroPokemon(destino.x, destino.y);
                 // Si el usuario mantiene pulsada una tecla, continuamos el movimiento.
                 revisarEntrada(mapa);
             } else {
@@ -219,6 +221,30 @@ public class Player {
      */
     public CapturaPokemon getSistemaCaptura() {
         return sistemaCaptura;
+    }
+
+    public EquipoPokemon getEquipo() {
+        return equipo;
+    }
+
+    public void agregarPuntosInvestigacion(String nombrePokemon, int puntos) {
+        pokedex.registrarInvestigacion(nombrePokemon, puntos);
+    }
+
+    public int getPuntosInvestigacion(String nombrePokemon) {
+        return pokedex.getPuntos(nombrePokemon);
+    }
+
+    public java.util.HashMap<String, Integer> getMapaPuntosInvestigacion() {
+        return pokedex.getMapaPuntos();
+    }
+
+    public Pokedex getPokedex() {
+        return pokedex;
+    }
+
+    public Vector2 getDireccionMirada() {
+        return direccionMirada;
     }
 
     /**

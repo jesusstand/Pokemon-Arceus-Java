@@ -1,16 +1,4 @@
 .gitkeep
-Aethergon_Atras_0.png
-Aethergon_Atras_1.png
-Aethergon_Atras_2.png
-Aethergon_Frente_0.png
-Aethergon_Frente_1.png
-Aethergon_Frente_2.png
-Aqualisca_Atras_0.png
-Aqualisca_Atras_1.png
-Aqualisca_Atras_2.png
-Aqualisca_Frente_0.png
-Aqualisca_Frente_1.png
-Aqualisca_Frente_2.png
 Boton Equipo activo.png
 Boton Equipo.png
 Boton Huir activo.png
@@ -19,41 +7,22 @@ Boton Mochila activo.png
 Boton Mochila.png
 Boton Pelea activo.png
 Boton Pelea.png
+Boton de Aceptar base.png
+Boton de Aceptar.png
+Boton de Cancelar base.png
+Boton de Cancelar.png
 Boton de Cargar Partida base.png
 Boton de Continuar base.png
 Boton de Continuar.png
 Boton de Craftear base.png
-Boton de Craftear.jpeg
+Boton de Craftear.png
 Boton de Nueva Partida base.png
 Boton de Nueva Partida.png
 Boton de cargar Partida.png
-Brotálamo_Atras_0.png
-Brotálamo_Atras_1.png
-Brotálamo_Atras_2.png
-Brotálamo_Frente_0.png
-Brotálamo_Frente_1.png
-Brotálamo_Frente_2.png
-Bulbasaur.png
 CampoBatalla.png
-Dracórnea_Atras_0.png
-Dracórnea_Atras_1.png
-Dracórnea_Atras_2.png
-Dracórnea_Frente_0.png
-Dracórnea_Frente_1.png
-Dracórnea_Frente_2.png
-Floravelo_Atras_0.png
-Floravelo_Atras_1.png
-Floravelo_Atras_2.png
-Floravelo_Frente_0.png
-Floravelo_Frente_1.png
-Floravelo_Frente_2.png
+CurarEquipo.png
 FondoEleccion.png
-Ignirrojo_Atras_0.png
-Ignirrojo_Atras_1.png
-Ignirrojo_Atras_2.png
-Ignirrojo_Frente_0.png
-Ignirrojo_Frente_1.png
-Ignirrojo_Frente_2.png
+GATORISA.jpg
 MapaCentro.tmx
 MapaVerdePokemon.tmx
 Marco 8bit Goma.png
@@ -61,15 +30,11 @@ Marco 8bit Madera.png
 Marco 8bit Plastico.png
 Marco 8bit a color.png
 Marco 8bit.png
+Marco Info1.png
 MarcoInventario.png
 MarcoInventario2.png
 MarcoInventariobase.png
-Mareónix_Atras_0.png
-Mareónix_Atras_1.png
-Mareónix_Atras_2.png
-Mareónix_Frente_0.png
-Mareónix_Frente_1.png
-Mareónix_Frente_2.png
+Multijugador.png
 Multiplayer.png
 MultiplayerC.png
 Musica/AzulM.mp3
@@ -86,13 +51,9 @@ PokeExp.png
 Pokeball.png
 PokemonEleccion.png
 Pokepausa.png
-Ponyta.png
 Salir.png
 SalirC.png
-Seel.png
-TileSets/Personajes.png
-TileSets/PokebolasTiled.png
-TileSets/TilesetPokemon.png
+SoltarPokemoLetra.png
 Tiled/LEEME_PRIMERO.txt
 Tiled/MapaAzulPokemon.tmx
 Tiled/MapaCentro.tmx
@@ -105,14 +66,72 @@ Tiled/TileSets/Personajes.png
 Tiled/TileSets/PokebolasTiled.png
 Tiled/TileSets/TilesetPokemon.png
 Tiled/centroPokemon.tsx
-Tiled/nose.tsx
-Volcárex_Atras_0.png
-Volcárex_Atras_1.png
-Volcárex_Atras_2.png
-Volcárex_Frente_0.png
-Volcárex_Frente_1.png
-Volcárex_Frente_2.png
 arceus.jpg
 pantalladeinicio.jpg
+partida_guardada.json
 player_sprite.png
+pokemon/Aethergon/Aethergon_Atras_0.png
+pokemon/Aethergon/Aethergon_Atras_1.png
+pokemon/Aethergon/Aethergon_Atras_2.png
+pokemon/Aethergon/Aethergon_Frente_0.png
+pokemon/Aethergon/Aethergon_Frente_1.png
+pokemon/Aethergon/Aethergon_Frente_2.png
+pokemon/Aethergon/Marco 8bit Aethergon vacio.png
+pokemon/Aethergon/Marco 8bit Aethergon.png
+pokemon/Aqualisca/Aqualisca_Atras_0.png
+pokemon/Aqualisca/Aqualisca_Atras_1.png
+pokemon/Aqualisca/Aqualisca_Atras_2.png
+pokemon/Aqualisca/Aqualisca_Frente_0.png
+pokemon/Aqualisca/Aqualisca_Frente_1.png
+pokemon/Aqualisca/Aqualisca_Frente_2.png
+pokemon/Aqualisca/Marco 8bit Aqualisca vacio.png
+pokemon/Aqualisca/Marco 8bit Aqualisca.png
+pokemon/Brotálamo/Brotálamo_Atras_0.png
+pokemon/Brotálamo/Brotálamo_Atras_1.png
+pokemon/Brotálamo/Brotálamo_Atras_2.png
+pokemon/Brotálamo/Brotálamo_Frente_0.png
+pokemon/Brotálamo/Brotálamo_Frente_1.png
+pokemon/Brotálamo/Brotálamo_Frente_2.png
+pokemon/Brotálamo/Marco 8bit Brotalamo vacio.png
+pokemon/Brotálamo/Marco 8bit Brotalamo.png
+pokemon/Dracórnea/Dracórnea_Atras_0.png
+pokemon/Dracórnea/Dracórnea_Atras_1.png
+pokemon/Dracórnea/Dracórnea_Atras_2.png
+pokemon/Dracórnea/Dracórnea_Frente_0.png
+pokemon/Dracórnea/Dracórnea_Frente_1.png
+pokemon/Dracórnea/Dracórnea_Frente_2.png
+pokemon/Dracórnea/Marco 8bit Dracornea vacio.png
+pokemon/Dracórnea/Marco 8bit Dracornea.png
+pokemon/Floravelo/Floravelo_Atras_0.png
+pokemon/Floravelo/Floravelo_Atras_1.png
+pokemon/Floravelo/Floravelo_Atras_2.png
+pokemon/Floravelo/Floravelo_Frente_0.png
+pokemon/Floravelo/Floravelo_Frente_1.png
+pokemon/Floravelo/Floravelo_Frente_2.png
+pokemon/Floravelo/Marco 8bit Floravelo vacio.png
+pokemon/Floravelo/Marco 8bit Floravelo.png
+pokemon/Ignirrojo/Ignirrojo_Atras_0.png
+pokemon/Ignirrojo/Ignirrojo_Atras_1.png
+pokemon/Ignirrojo/Ignirrojo_Atras_2.png
+pokemon/Ignirrojo/Ignirrojo_Frente_0.png
+pokemon/Ignirrojo/Ignirrojo_Frente_1.png
+pokemon/Ignirrojo/Ignirrojo_Frente_2.png
+pokemon/Ignirrojo/Marco 8bit Ignirrojo vacio.png
+pokemon/Ignirrojo/Marco 8bit Ignirrojo.png
+pokemon/Mareónix/Marco 8bit Mareonix vacio.png
+pokemon/Mareónix/Marco 8bit Mareonix.png
+pokemon/Mareónix/Mareónix_Atras_0.png
+pokemon/Mareónix/Mareónix_Atras_1.png
+pokemon/Mareónix/Mareónix_Atras_2.png
+pokemon/Mareónix/Mareónix_Frente_0.png
+pokemon/Mareónix/Mareónix_Frente_1.png
+pokemon/Mareónix/Mareónix_Frente_2.png
+pokemon/Volcárex/Marco 8bit Volcarex vacio.png
+pokemon/Volcárex/Marco 8bit Volcarex.png
+pokemon/Volcárex/Volcárex_Atras_0.png
+pokemon/Volcárex/Volcárex_Atras_1.png
+pokemon/Volcárex/Volcárex_Atras_2.png
+pokemon/Volcárex/Volcárex_Frente_0.png
+pokemon/Volcárex/Volcárex_Frente_1.png
+pokemon/Volcárex/Volcárex_Frente_2.png
 presionecualquierboton.png

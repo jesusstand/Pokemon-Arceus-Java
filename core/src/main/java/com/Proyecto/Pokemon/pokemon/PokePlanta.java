@@ -7,20 +7,29 @@ import com.Proyecto.Pokemon.ataques.IAtaquePlanta;
  * Implementa la interfaz IAtaquePlanta con ataques únicos de tipo Planta.
  */
 public class PokePlanta extends Pokemon implements IAtaquePlanta {
-    private int poderPlanta; // Poder base de ataques de planta
+    private int poderPlanta; // Poder ACTUAL de ataques de planta
+    private int basePoderPlanta; // Poder BASE
 
     /**
      * Constructor de Pokemon de tipo Planta.
-     *
-     * @param nombre      Nombre del Pokemon.
-     * @param peso        Peso en kilogramos.
-     * @param sexo        Sexo del Pokemon.
-     * @param vidaMaxima  Puntos de salud máximos.
-     * @param poderPlanta Poder base para ataques de planta.
      */
+    public PokePlanta(String nombre, double peso, String sexo, int vidaMaxima, int poderPlanta, int nivel) {
+        super(nombre, peso, sexo, vidaMaxima, Tipo.PLANTA, nivel);
+        this.basePoderPlanta = poderPlanta;
+        calcularEstadisticas();
+    }
+
+    // Constructor compatibilidad
     public PokePlanta(String nombre, double peso, String sexo, int vidaMaxima, int poderPlanta) {
-        super(nombre, peso, sexo, vidaMaxima, Tipo.PLANTA);
-        this.poderPlanta = poderPlanta;
+        this(nombre, peso, sexo, vidaMaxima, poderPlanta, 1);
+    }
+
+    @Override
+    protected void calcularEstadisticas() {
+        super.calcularEstadisticas();
+        // Poder aumenta 10% por nivel extra
+        double porcentajePoder = 1.0 + (0.10 * (nivel - 1));
+        this.poderPlanta = (int) (basePoderPlanta * porcentajePoder);
     }
 
     @Override
@@ -49,7 +58,11 @@ public class PokePlanta extends Pokemon implements IAtaquePlanta {
      */
     public static class Brotalamo extends PokePlanta {
         public Brotalamo(String sexo) {
-            super("Brotálamo", 18.3, sexo, 70, 30);
+            super("Brotálamo", 18.3, sexo, 70, 30, 1);
+        }
+
+        public Brotalamo(String sexo, int nivel) {
+            super("Brotálamo", 18.3, sexo, 70, 30, nivel);
         }
     }
 
@@ -58,7 +71,11 @@ public class PokePlanta extends Pokemon implements IAtaquePlanta {
      */
     public static class Floravelo extends PokePlanta {
         public Floravelo(String sexo) {
-            super("Floravelo", 22.7, sexo, 85, 38);
+            super("Floravelo", 22.7, sexo, 85, 38, 1);
+        }
+
+        public Floravelo(String sexo, int nivel) {
+            super("Floravelo", 22.7, sexo, 85, 38, nivel);
         }
     }
 }

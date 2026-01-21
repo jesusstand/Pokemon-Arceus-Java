@@ -78,8 +78,15 @@
   </objectgroup>
  </tile>
  <tile id="43">
-  <objectgroup>
-   <object id="1" type="Pared" x="0" y="0" width="16" height="16"/>
+  <properties>
+   <property name="Pokedex" value="True"/>
+  </properties>
+  <objectgroup draworder="index" id="2">
+   <object id="1" type="Pared" x="0" y="0" width="16" height="16">
+    <properties>
+     <property name="Pokedex" value="True"/>
+    </properties>
+   </object>
   </objectgroup>
  </tile>
  <tile id="44">
@@ -163,6 +170,9 @@
   </objectgroup>
  </tile>
  <tile id="72">
+  <properties>
+   <property name="Emergencias" value="Curar"/>
+  </properties>
   <objectgroup>
    <object id="1" type="Pared" x="0" y="0" width="16" height="16"/>
   </objectgroup>
